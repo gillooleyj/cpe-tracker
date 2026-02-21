@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import QRCode from "react-qr-code";
 
 // ── Backup code helpers ──────────────────────────────────────────────────────
 
@@ -39,13 +40,14 @@ export default function MFASetupPage() {
 
   // Enrollment state
   const [factorId, setFactorId] = useState("");
-  const [qrCode, setQrCode] = useState("");
+  const [totpUri, setTotpUri] = useState("");
   const [secret, setSecret] = useState("");
   const [showSecret, setShowSecret] = useState(false);
   const [verifyCode, setVerifyCode] = useState("");
   const [enrollError, setEnrollError] = useState<string | null>(null);
   const [enrollLoading, setEnrollLoading] = useState(false);
   const [initError, setInitError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Backup codes state
   const [screen, setScreen] = useState<Screen>("enroll");
@@ -56,22 +58,72 @@ export default function MFASetupPage() {
     "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm";
 
   const startEnrollment = useCallback(async () => {
+    // Reset all enrollment state so the spinner shows on retry/reset
     setInitError(null);
+    setTotpUri("");
+    setSecret("");
+    setFactorId("");
+    setVerifyCode("");
+    setEnrollError(null);
+    setShowSecret(false);
+
+    // 1. Check what factors already exist for this user
+    const { data: factors, error: listError } = await supabase.auth.mfa.listFactors();
+    if (listError) {
+      setInitError("Failed to check MFA status. Please refresh the page.");
+      return;
+    }
+
+    // 2. If a verified factor already exists, MFA setup is complete — skip ahead.
+    //    factors.totp is typed as verified-only by the SDK.
+    if (factors.totp.length > 0) {
+      router.replace("/certifications");
+      return;
+    }
+
+    // 3. If an unverified (incomplete) factor exists, delete it before enrolling
+    //    a fresh one. This is the root cause of the "factor already exists" error.
+    //    Unverified factors only appear in factors.all, not factors.totp.
+    const unverifiedFactor = factors.all.find(
+      (f) => f.factor_type === "totp" && f.status === "unverified"
+    );
+    if (unverifiedFactor) {
+      const { error: unenrollError } = await supabase.auth.mfa.unenroll({
+        factorId: unverifiedFactor.id,
+      });
+      if (unenrollError) {
+        setInitError(
+          "Failed to clear a previous incomplete MFA setup. Please refresh the page."
+        );
+        return;
+      }
+    }
+
+    // 4. Enroll a brand-new TOTP factor
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: "totp",
     });
     if (error || !data) {
-      setInitError(error?.message ?? "Failed to start MFA setup. Please refresh.");
+      setInitError(
+        error?.message ?? "Failed to start MFA setup. Please refresh the page."
+      );
       return;
     }
+
     setFactorId(data.id);
-    setQrCode(data.totp.qr_code);
+    setTotpUri(data.totp.uri);
     setSecret(data.totp.secret);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     startEnrollment();
   }, [startEnrollment]);
+
+  async function handleReset() {
+    setResetting(true);
+    await startEnrollment();
+    setResetting(false);
+  }
 
   async function handleEnable(e: React.FormEvent) {
     e.preventDefault();
@@ -82,7 +134,9 @@ export default function MFASetupPage() {
     const { data: challengeData, error: challengeError } =
       await supabase.auth.mfa.challenge({ factorId });
     if (challengeError || !challengeData) {
-      setEnrollError(challengeError?.message ?? "Challenge failed.");
+      setEnrollError(
+        challengeError?.message ?? "Failed to start verification. Please try again."
+      );
       setEnrollLoading(false);
       return;
     }
@@ -94,7 +148,7 @@ export default function MFASetupPage() {
       code: verifyCode,
     });
     if (verifyError) {
-      setEnrollError("Invalid code. Please try again.");
+      setEnrollError("Invalid code. Make sure your device clock is correct and try again.");
       setEnrollLoading(false);
       return;
     }
@@ -230,15 +284,16 @@ export default function MFASetupPage() {
 
         {initError ? (
           <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm mb-4">
-            {initError}
+            <p>{initError}</p>
             <button
-              onClick={startEnrollment}
-              className="ml-2 underline"
+              onClick={handleReset}
+              disabled={resetting}
+              className="mt-2 underline disabled:opacity-50"
             >
-              Retry
+              {resetting ? "Retrying…" : "Try again"}
             </button>
           </div>
-        ) : !qrCode ? (
+        ) : !totpUri ? (
           <div className="flex justify-center py-12">
             <div className="w-6 h-6 border-2 border-blue-900 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
           </div>
@@ -246,13 +301,8 @@ export default function MFASetupPage() {
           <>
             {/* QR Code */}
             <div className="flex justify-center mb-4">
-              <div className="p-3 bg-white border border-gray-200 dark:border-gray-600 rounded-xl">
-                <img
-                  src={`data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`}
-                  alt="MFA QR Code"
-                  width={180}
-                  height={180}
-                />
+              <div className="p-4 bg-white border border-gray-200 dark:border-gray-600 rounded-xl">
+                <QRCode value={totpUri} size={220} />
               </div>
             </div>
 
@@ -312,6 +362,18 @@ export default function MFASetupPage() {
                 {enrollLoading || saving ? "Enabling…" : "Enable MFA"}
               </button>
             </form>
+
+            {/* Start Over — lets users recover from a stuck state */}
+            <div className="mt-5 pt-4 border-t border-gray-100 dark:border-gray-700 text-center">
+              <button
+                type="button"
+                onClick={handleReset}
+                disabled={resetting || enrollLoading || saving}
+                className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 transition-colors"
+              >
+                {resetting ? "Resetting…" : "QR code not working? Start over"}
+              </button>
+            </div>
           </>
         )}
       </div>
