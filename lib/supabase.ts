@@ -1,9 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
 
 export type Certification = {
   id: string;
@@ -16,5 +16,6 @@ export type Certification = {
   cpe_cycle_length: number | null;
   annual_minimum_cpe: number | null;
   digital_certificate_url: string | null;
+  user_id?: string;
   created_at?: string;
 };

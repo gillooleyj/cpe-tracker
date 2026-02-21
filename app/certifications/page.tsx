@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase, type Certification } from "@/lib/supabase";
+import { useAuth } from "../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
 
@@ -52,6 +53,7 @@ function formatCycle(months: number | null) {
 }
 
 export default function CertificationsPage() {
+  const { user } = useAuth();
   const [certs, setCerts] = useState<Certification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,11 +63,13 @@ export default function CertificationsPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   async function fetchCerts() {
+    if (!user) return;
     setLoading(true);
     setError(null);
     const { data, error } = await supabase
       .from("certifications")
       .select("*")
+      .eq("user_id", user.id)
       .order("expiration_date", { ascending: true, nullsFirst: false });
     if (error) {
       setError(error.message);
@@ -77,7 +81,8 @@ export default function CertificationsPage() {
 
   useEffect(() => {
     fetchCerts();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,6 +99,7 @@ export default function CertificationsPage() {
       cpe_cycle_length: form.cpe_cycle_length ? Number(form.cpe_cycle_length) : null,
       annual_minimum_cpe: form.annual_minimum_cpe ? Number(form.annual_minimum_cpe) : null,
       digital_certificate_url: form.digital_certificate_url.trim() || null,
+      user_id: user!.id,
     };
 
     const { error } = await supabase.from("certifications").insert([payload]);
