@@ -3,6 +3,7 @@ import "./globals.css";
 import ThemeProvider from "./ThemeProvider";
 import Navbar from "./Navbar";
 import AuthProvider from "./AuthProvider";
+import SessionTimeoutManager from "./SessionTimeoutManager";
 
 export const metadata: Metadata = {
   title: "CPE Tracker",
@@ -21,6 +22,7 @@ export default function RootLayout({
           <ThemeProvider>
             <Navbar />
             {children}
+            <SessionTimeoutManager />
           </ThemeProvider>
         </AuthProvider>
       </body>

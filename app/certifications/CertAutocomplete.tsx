@@ -7,9 +7,10 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   onSelect: (template: CertTemplate) => void;
+  hasError?: boolean;
 };
 
-export default function CertAutocomplete({ value, onChange, onSelect }: Props) {
+export default function CertAutocomplete({ value, onChange, onSelect, hasError }: Props) {
   const [suggestions, setSuggestions] = useState<CertTemplate[]>([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [readOnly, setReadOnly] = useState(true);
@@ -73,7 +74,7 @@ export default function CertAutocomplete({ value, onChange, onSelect }: Props) {
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="e.g. CISSP or type your own"
-        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent [&::-webkit-search-cancel-button]:hidden"
+        className={`w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent [&::-webkit-search-cancel-button]:hidden ${hasError ? "border-red-400 dark:border-red-500 focus:ring-red-400 dark:focus:ring-red-500" : "border-gray-300 dark:border-gray-600 focus:ring-blue-900 dark:focus:ring-blue-500"}`}
       />
 
       {suggestions.length > 0 && (

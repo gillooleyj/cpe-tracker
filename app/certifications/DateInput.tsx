@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, KeyboardEvent } from "react";
 type Props = {
   value: string; // "YYYY-MM-DD" or ""
   onChange: (value: string) => void;
+  hasError?: boolean;
 };
 
 function parse(v: string) {
@@ -17,7 +18,7 @@ function parse(v: string) {
   };
 }
 
-export default function DateInput({ value, onChange }: Props) {
+export default function DateInput({ value, onChange, hasError }: Props) {
   const init = parse(value);
   const [month, setMonth] = useState(init.m);
   const [day, setDay] = useState(init.d);
@@ -133,7 +134,7 @@ export default function DateInput({ value, onChange }: Props) {
     "bg-transparent outline-none text-sm text-gray-700 dark:text-gray-200 placeholder-gray-400 dark:placeholder-gray-500 text-center min-w-0";
 
   return (
-    <div className="flex items-center w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:ring-blue-900 dark:focus-within:ring-blue-500 focus-within:border-transparent cursor-text">
+    <div className={`flex items-center w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 focus-within:ring-2 focus-within:border-transparent cursor-text ${hasError ? "border-red-400 dark:border-red-500 focus-within:ring-red-400 dark:focus-within:ring-red-500" : "border-gray-300 dark:border-gray-600 focus-within:ring-blue-900 dark:focus-within:ring-blue-500"}`}>
       <input
         ref={monthRef}
         type="text"

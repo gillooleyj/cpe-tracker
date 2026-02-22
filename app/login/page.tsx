@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sessionExpired = searchParams.get("timeout") === "1";
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -39,6 +41,11 @@ export default function LoginPage() {
         </p>
 
         <form onSubmit={handleLogin} className="space-y-4">
+          {sessionExpired && (
+            <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg px-3 py-2.5 text-amber-700 dark:text-amber-400 text-sm">
+              Your session expired due to inactivity. Please log in again.
+            </div>
+          )}
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
               {error}
@@ -111,5 +118,14 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// Suspense boundary is required because LoginForm uses useSearchParams().
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

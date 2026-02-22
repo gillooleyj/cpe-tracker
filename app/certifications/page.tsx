@@ -2,11 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { supabase, type Certification } from "@/lib/supabase";
+import {
+  validateCertForm,
+  type CertFormFields,
+  type FieldErrors,
+  type FieldWarnings,
+} from "@/lib/certValidation";
 import { useAuth } from "../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
 
-const EMPTY_FORM = {
+const EMPTY_FORM: CertFormFields = {
   name: "",
   organization: "",
   organization_url: "",
@@ -57,11 +63,53 @@ export default function CertificationsPage() {
   const [certs, setCerts] = useState<Certification[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Form visibility
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState<CertFormFields>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Per-field validation state
+  const [fieldErrors, setFieldErrors]     = useState<FieldErrors>({});
+  const [fieldWarnings, setFieldWarnings] = useState<FieldWarnings>({});
+  // Controls whether inline errors are shown (only after first submit attempt)
+  const [hasAttempted, setHasAttempted] = useState(false);
+
+  // ── Shared input class builders ──────────────────────────────────────────────
+  const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+
+  function inputCls(key: keyof CertFormFields, extra = "") {
+    const base =
+      "w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 " +
+      "text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 " +
+      "focus:outline-none focus:ring-2 focus:border-transparent";
+    const state = fieldErrors[key]
+      ? "border-red-400 dark:border-red-500 focus:ring-red-400 dark:focus:ring-red-500"
+      : "border-gray-300 dark:border-gray-600 focus:ring-blue-900 dark:focus:ring-blue-500";
+    return `${base} ${state} ${extra}`.trim();
+  }
+
+  // ── Inline error / warning helpers ───────────────────────────────────────────
+  function FieldError({ name }: { name: keyof CertFormFields }) {
+    const msg = fieldErrors[name];
+    if (!msg) return null;
+    return (
+      <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+        {msg}
+      </p>
+    );
+  }
+
+  function FieldWarning({ name }: { name: keyof CertFormFields }) {
+    const msg = fieldWarnings[name];
+    if (!msg || fieldErrors[name]) return null;
+    return (
+      <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">{msg}</p>
+    );
+  }
+
+  // ── Data fetching ────────────────────────────────────────────────────────────
   async function fetchCerts() {
     if (!user) return;
     setLoading(true);
@@ -84,43 +132,76 @@ export default function CertificationsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // ── Form helpers ─────────────────────────────────────────────────────────────
+
+  function field(key: keyof CertFormFields, value: string) {
+    const newForm = { ...form, [key]: value };
+    setForm(newForm);
+    // Once the user has attempted submission, re-validate on every keystroke
+    // so errors clear in real-time (including cross-field checks like date order).
+    if (hasAttempted) {
+      const { errors, warnings } = validateCertForm(newForm);
+      setFieldErrors(errors);
+      setFieldWarnings(warnings);
+    }
+  }
+
+  function resetForm() {
+    setForm(EMPTY_FORM);
+    setFieldErrors({});
+    setFieldWarnings({});
+    setFormError(null);
+    setHasAttempted(false);
+  }
+
+  // ── Submit ───────────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSaving(true);
+    setHasAttempted(true);
     setFormError(null);
 
-    const payload = {
-      name: form.name.trim(),
-      organization: form.organization.trim(),
-      organization_url: form.organization_url.trim() || null,
-      issue_date: form.issue_date || null,
-      expiration_date: form.expiration_date || null,
-      cpe_required: form.cpe_required ? Number(form.cpe_required) : null,
-      cpe_cycle_length: form.cpe_cycle_length ? Number(form.cpe_cycle_length) : null,
-      annual_minimum_cpe: form.annual_minimum_cpe ? Number(form.annual_minimum_cpe) : null,
-      digital_certificate_url: form.digital_certificate_url.trim() || null,
-      user_id: user!.id,
-    };
+    // Client-side validation — mirrors server exactly via the shared module
+    const { errors, warnings, valid } = validateCertForm(form);
+    setFieldErrors(errors);
+    setFieldWarnings(warnings);
+    if (!valid) return;
 
-    const { error } = await supabase.from("certifications").insert([payload]);
-    if (error) {
-      setFormError(error.message);
-    } else {
-      setForm(EMPTY_FORM);
-      setShowForm(false);
-      await fetchCerts();
+    setSaving(true);
+
+    const res = await fetch("/api/certifications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+
+    if (res.status === 429) {
+      const body = await res.json();
+      setFormError(body.error ?? "Too many submissions. Please wait a minute.");
+      setSaving(false);
+      return;
     }
+
+    if (!res.ok) {
+      const body = await res.json();
+      if (body.errors) {
+        // Server caught something the client missed (shouldn't happen, but
+        // surface it as per-field errors anyway)
+        setFieldErrors(body.errors as FieldErrors);
+      } else {
+        setFormError(body.error ?? "Failed to save certification.");
+      }
+      setSaving(false);
+      return;
+    }
+
+    // Success
+    resetForm();
+    setShowForm(false);
+    await fetchCerts();
     setSaving(false);
   }
 
-  function field(key: keyof typeof form, value: string) {
-    setForm((f) => ({ ...f, [key]: value }));
-  }
-
-  const inputClass =
-    "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent";
-  const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
-
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page header */}
@@ -133,19 +214,17 @@ export default function CertificationsPage() {
         </div>
         <button
           onClick={() => {
+            if (showForm) {
+              resetForm();
+            }
             setShowForm((v) => !v);
-            setFormError(null);
           }}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 active:bg-blue-700 transition-colors shadow-sm"
         >
           {showForm ? (
-            <>
-              <span className="text-lg leading-none">×</span> Cancel
-            </>
+            <><span className="text-lg leading-none">×</span> Cancel</>
           ) : (
-            <>
-              <span className="text-lg leading-none">+</span> Add Certification
-            </>
+            <><span className="text-lg leading-none">+</span> Add Certification</>
           )}
         </button>
       </div>
@@ -156,31 +235,34 @@ export default function CertificationsPage() {
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-5">
             New Certification
           </h2>
-          <form onSubmit={handleSubmit} autoComplete="off" className="space-y-4">
+
+          {/* noValidate disables browser native bubbles; we show our own messages */}
+          <form onSubmit={handleSubmit} autoComplete="off" noValidate className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Cert name with autocomplete */}
+
+              {/* Certification name */}
               <div>
                 <label className={labelClass}>
                   Certification Name <span className="text-red-500">*</span>
                 </label>
                 <CertAutocomplete
                   value={form.name}
+                  hasError={!!fieldErrors.name}
                   onChange={(v) => field("name", v)}
                   onSelect={(t) =>
                     setForm((f) => ({
                       ...f,
-                      name: t.name,
-                      organization: t.organization,
-                      organization_url: t.organization_url,
-                      cpe_required: String(t.cpe_required),
-                      cpe_cycle_length: String(t.cpe_cycle_length),
+                      name:              t.name,
+                      organization:      t.organization,
+                      organization_url:  t.organization_url,
+                      cpe_required:      String(t.cpe_required),
+                      cpe_cycle_length:  String(t.cpe_cycle_length),
                       annual_minimum_cpe:
-                        t.annual_minimum_cpe != null
-                          ? String(t.annual_minimum_cpe)
-                          : "",
+                        t.annual_minimum_cpe != null ? String(t.annual_minimum_cpe) : "",
                     }))
                   }
                 />
+                <FieldError name="name" />
               </div>
 
               {/* Organization */}
@@ -189,7 +271,6 @@ export default function CertificationsPage() {
                   Organization <span className="text-red-500">*</span>
                 </label>
                 <input
-                  required
                   type="search"
                   name="organization-field"
                   autoComplete="chrome-off"
@@ -198,8 +279,10 @@ export default function CertificationsPage() {
                   value={form.organization}
                   onChange={(e) => field("organization", e.target.value)}
                   placeholder="e.g. ISC2"
-                  className={`${inputClass} [&::-webkit-search-cancel-button]:hidden`}
+                  aria-invalid={!!fieldErrors.organization}
+                  className={`${inputCls("organization")} [&::-webkit-search-cancel-button]:hidden`}
                 />
+                <FieldError name="organization" />
               </div>
 
               {/* Organization URL */}
@@ -214,39 +297,55 @@ export default function CertificationsPage() {
                   value={form.organization_url}
                   onChange={(e) => field("organization_url", e.target.value)}
                   placeholder="https://www.isc2.org"
-                  className={`${inputClass} [&::-webkit-search-cancel-button]:hidden`}
+                  aria-invalid={!!fieldErrors.organization_url}
+                  className={`${inputCls("organization_url")} [&::-webkit-search-cancel-button]:hidden`}
                 />
+                <FieldError name="organization_url" />
               </div>
 
               {/* Issue date */}
               <div>
-                <label className={labelClass}>Issue Date</label>
+                <label className={labelClass}>
+                  Issue Date <span className="text-red-500">*</span>
+                </label>
                 <DateInput
                   value={form.issue_date}
+                  hasError={!!fieldErrors.issue_date}
                   onChange={(v) => field("issue_date", v)}
                 />
+                <FieldError name="issue_date" />
               </div>
 
               {/* Expiration date */}
               <div>
-                <label className={labelClass}>Expiration Date</label>
+                <label className={labelClass}>
+                  Expiration Date <span className="text-red-500">*</span>
+                </label>
                 <DateInput
                   value={form.expiration_date}
+                  hasError={!!fieldErrors.expiration_date}
                   onChange={(v) => field("expiration_date", v)}
                 />
+                <FieldError name="expiration_date" />
+                <FieldWarning name="expiration_date" />
               </div>
 
-              {/* CPE required */}
+              {/* CPE hours required */}
               <div>
-                <label className={labelClass}>CPE Hours Required</label>
+                <label className={labelClass}>
+                  CPE Hours Required <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="number"
-                  min="0"
+                  min="1"
+                  max="500"
                   value={form.cpe_required}
                   onChange={(e) => field("cpe_required", e.target.value)}
                   placeholder="e.g. 120"
-                  className={inputClass}
+                  aria-invalid={!!fieldErrors.cpe_required}
+                  className={inputCls("cpe_required")}
                 />
+                <FieldError name="cpe_required" />
               </div>
 
               {/* CPE cycle length */}
@@ -255,14 +354,17 @@ export default function CertificationsPage() {
                 <input
                   type="number"
                   min="1"
+                  max="120"
                   value={form.cpe_cycle_length}
                   onChange={(e) => field("cpe_cycle_length", e.target.value)}
                   placeholder="e.g. 36"
-                  className={inputClass}
+                  aria-invalid={!!fieldErrors.cpe_cycle_length}
+                  className={inputCls("cpe_cycle_length")}
                 />
+                <FieldError name="cpe_cycle_length" />
               </div>
 
-              {/* Annual minimum */}
+              {/* Annual minimum CPE */}
               <div>
                 <label className={labelClass}>Annual Minimum CPE</label>
                 <input
@@ -271,8 +373,10 @@ export default function CertificationsPage() {
                   value={form.annual_minimum_cpe}
                   onChange={(e) => field("annual_minimum_cpe", e.target.value)}
                   placeholder="e.g. 40 (leave blank if none)"
-                  className={inputClass}
+                  aria-invalid={!!fieldErrors.annual_minimum_cpe}
+                  className={inputCls("annual_minimum_cpe")}
                 />
+                <FieldError name="annual_minimum_cpe" />
               </div>
 
               {/* Digital certificate URL */}
@@ -283,14 +387,30 @@ export default function CertificationsPage() {
                   value={form.digital_certificate_url}
                   onChange={(e) => field("digital_certificate_url", e.target.value)}
                   placeholder="https://..."
-                  className={inputClass}
+                  aria-invalid={!!fieldErrors.digital_certificate_url}
+                  className={inputCls("digital_certificate_url")}
                 />
+                <FieldError name="digital_certificate_url" />
               </div>
             </div>
 
+            {/* Form-level error (rate limit, server error, etc.) */}
             {formError && (
-              <p className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2"
+              >
                 {formError}
+              </p>
+            )}
+
+            {/* Summary when there are field errors and user has attempted submit */}
+            {hasAttempted && Object.keys(fieldErrors).length > 0 && (
+              <p
+                role="alert"
+                className="text-sm text-red-600 dark:text-red-400"
+              >
+                Please fix the errors above before saving.
               </p>
             )}
 
@@ -299,8 +419,7 @@ export default function CertificationsPage() {
                 type="button"
                 onClick={() => {
                   setShowForm(false);
-                  setForm(EMPTY_FORM);
-                  setFormError(null);
+                  resetForm();
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
@@ -406,8 +525,7 @@ export default function CertificationsPage() {
                         CPE Required
                       </dt>
                       <dd className="text-gray-700 dark:text-gray-300 mt-0.5">
-                        {cert.cpe_required} hrs
-                        {cycle ? ` / ${cycle}` : ""}
+                        {cert.cpe_required} hrs{cycle ? ` / ${cycle}` : ""}
                       </dd>
                     </div>
                   )}
