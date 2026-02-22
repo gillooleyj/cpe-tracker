@@ -15,6 +15,7 @@ export type Certification = {
   cpe_required: number | null;
   cpe_cycle_length: number | null;
   annual_minimum_cpe: number | null;
+  cpe_earned: number;
   digital_certificate_url: string | null;
   user_id: string;
   created_at?: string;

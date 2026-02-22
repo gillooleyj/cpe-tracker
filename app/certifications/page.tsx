@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase, type Certification } from "@/lib/supabase";
 import {
   validateCertForm,
+  sanitizeCertForm,
   type CertFormFields,
   type FieldErrors,
   type FieldWarnings,
@@ -11,6 +12,17 @@ import {
 import { useAuth } from "../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type SortMode = "priority" | "alphabetical";
+
+type SmartStatusResult = {
+  label: "Complete" | "On Track" | "Needs Attention" | "Urgent";
+  emoji: string;
+};
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const EMPTY_FORM: CertFormFields = {
   name: "",
@@ -24,27 +36,89 @@ const EMPTY_FORM: CertFormFields = {
   digital_certificate_url: "",
 };
 
-function getStatus(expirationDate: string | null) {
+const SORT_PREF_KEY = "cpe-tracker-sort-mode";
+
+const SMART_PRIORITY: Record<string, number> = {
+  Urgent: 0,
+  "Needs Attention": 1,
+  "On Track": 2,
+  Complete: 3,
+};
+
+// ── Helper functions ──────────────────────────────────────────────────────────
+
+function getDaysLeft(expirationDate: string | null): number | null {
   if (!expirationDate) return null;
   const now = new Date();
-  const exp = new Date(expirationDate);
-  const daysLeft = Math.ceil(
-    (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (daysLeft < 0)
-    return { label: "Expired", color: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400", daysLeft };
-  if (daysLeft <= 90)
-    return {
-      label: "Expiring Soon",
-      color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400",
-      daysLeft,
-    };
-  return { label: "Active", color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400", daysLeft };
+  now.setHours(0, 0, 0, 0);
+  const exp = new Date(expirationDate + "T00:00:00Z");
+  return Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function formatDate(dateStr: string | null) {
+function getActiveStatus(cert: Certification): "Active" | "Expired" {
+  const daysLeft = getDaysLeft(cert.expiration_date);
+  if (daysLeft === null) return "Active";
+  return daysLeft >= 0 ? "Active" : "Expired";
+}
+
+function getSmartStatus(cert: Certification): SmartStatusResult | null {
+  if (getActiveStatus(cert) === "Expired") return null;
+  if (!cert.expiration_date || cert.cpe_required == null) return null;
+
+  const cpeEarned = cert.cpe_earned ?? 0;
+  const cpeRequired = cert.cpe_required;
+  const daysLeft = getDaysLeft(cert.expiration_date) ?? 0;
+
+  if (cpeEarned >= cpeRequired) return { label: "Complete", emoji: "🟢" };
+
+  const issueDate = new Date(cert.issue_date + "T00:00:00Z");
+  const expDate = new Date(cert.expiration_date + "T00:00:00Z");
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const totalDays = Math.ceil(
+    (expDate.getTime() - issueDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const daysPassed = Math.ceil(
+    (now.getTime() - issueDate.getTime()) / (1000 * 60 * 60 * 24)
+  );
+  const expectedProgress = totalDays > 0 ? daysPassed / totalDays : 0;
+  const actualProgress = cpeEarned / cpeRequired;
+
+  if (daysLeft < 90 && actualProgress < 0.5) {
+    return { label: "Urgent", emoji: "🔴" };
+  }
+  if (actualProgress >= expectedProgress) {
+    return { label: "On Track", emoji: "🟢" };
+  }
+  return { label: "Needs Attention", emoji: "🟡" };
+}
+
+function sortCerts(certs: Certification[], mode: SortMode): Certification[] {
+  if (mode === "alphabetical") {
+    return [...certs].sort((a, b) =>
+      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+    );
+  }
+  return [...certs].sort((a, b) => {
+    const aExpired = getActiveStatus(a) === "Expired";
+    const bExpired = getActiveStatus(b) === "Expired";
+    if (aExpired !== bExpired) return aExpired ? 1 : -1;
+    if (aExpired && bExpired) {
+      return (b.expiration_date ?? "").localeCompare(a.expiration_date ?? "");
+    }
+    const aP = SMART_PRIORITY[getSmartStatus(a)?.label ?? ""] ?? 4;
+    const bP = SMART_PRIORITY[getSmartStatus(b)?.label ?? ""] ?? 4;
+    if (aP !== bP) return aP - bP;
+    const aDays = getDaysLeft(a.expiration_date) ?? Infinity;
+    const bDays = getDaysLeft(b.expiration_date) ?? Infinity;
+    return aDays - bDays;
+  });
+}
+
+function formatDate(dateStr: string | null): string {
   if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("en-US", {
+  return new Date(dateStr + "T00:00:00Z").toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -52,11 +126,301 @@ function formatDate(dateStr: string | null) {
   });
 }
 
-function formatCycle(months: number | null) {
+function formatCycleFull(months: number | null): string | null {
   if (!months) return null;
-  if (months % 12 === 0) return `${months / 12} yr`;
-  return `${months} mo`;
+  if (months % 12 === 0) {
+    const yrs = months / 12;
+    return `${months} months (${yrs} ${yrs === 1 ? "year" : "years"})`;
+  }
+  return `${months} months`;
 }
+
+function certToFormFields(cert: Certification): CertFormFields {
+  return {
+    name: cert.name,
+    organization: cert.organization,
+    organization_url: cert.organization_url ?? "",
+    issue_date: cert.issue_date,
+    expiration_date: cert.expiration_date ?? "",
+    cpe_required: cert.cpe_required != null ? String(cert.cpe_required) : "",
+    cpe_cycle_length:
+      cert.cpe_cycle_length != null ? String(cert.cpe_cycle_length) : "",
+    annual_minimum_cpe:
+      cert.annual_minimum_cpe != null ? String(cert.annual_minimum_cpe) : "",
+    digital_certificate_url: cert.digital_certificate_url ?? "",
+  };
+}
+
+// ── CertCard ──────────────────────────────────────────────────────────────────
+
+function CertCard({
+  cert,
+  isExpanded,
+  onToggle,
+  onEdit,
+  onDelete,
+}: {
+  cert: Certification;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onEdit: (cert: Certification) => void;
+  onDelete: (id: string) => void;
+}) {
+  const activeStatus = getActiveStatus(cert);
+  const smartStatus = getSmartStatus(cert);
+  const daysLeft = getDaysLeft(cert.expiration_date);
+  const cpeEarned = cert.cpe_earned ?? 0;
+
+  const overallPercent =
+    cert.cpe_required && cert.cpe_required > 0
+      ? Math.min(100, Math.round((cpeEarned / cert.cpe_required) * 100))
+      : 0;
+
+  const monthsRemaining =
+    daysLeft !== null && daysLeft > 0 ? daysLeft / 30.44 : 0;
+  const cpeRemaining =
+    cert.cpe_required != null ? Math.max(0, cert.cpe_required - cpeEarned) : 0;
+  const cpePerMonth =
+    monthsRemaining > 0 && cpeRemaining > 0
+      ? (cpeRemaining / monthsRemaining).toFixed(1)
+      : null;
+
+  const lbl =
+    "text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500";
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
+      {/* Clickable header — expands/collapses the card */}
+      <button
+        onClick={onToggle}
+        className="w-full px-5 pt-4 pb-3 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-900 focus-visible:ring-inset"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
+              {cert.name}
+            </span>
+            <span className="text-gray-400 dark:text-gray-500 text-[11px] shrink-0 select-none">
+              {isExpanded ? "▲" : "▼"}
+            </span>
+          </div>
+          <span
+            className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
+              activeStatus === "Active"
+                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+            }`}
+          >
+            {activeStatus}
+          </span>
+        </div>
+        <div className="flex items-center justify-between mt-1 gap-3">
+          <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
+            {cert.organization}
+          </span>
+          {smartStatus && (
+            <span className="text-xs text-gray-600 dark:text-gray-400 shrink-0">
+              {smartStatus.emoji} {smartStatus.label}
+            </span>
+          )}
+        </div>
+      </button>
+
+      {/* Always-visible summary */}
+      <div className="px-5 pb-4 border-t border-gray-100 dark:border-gray-700 pt-3 space-y-3">
+        {/* Expiration + days remaining on one line */}
+        <p className="text-xs text-gray-600 dark:text-gray-400">
+          {cert.expiration_date ? (
+            <>
+              <span className="font-medium text-gray-700 dark:text-gray-300">
+                Expires:
+              </span>{" "}
+              {formatDate(cert.expiration_date)}
+              {daysLeft !== null && daysLeft >= 0 && (
+                <span className="text-gray-500 dark:text-gray-500">
+                  {" "}•{" "}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">
+                    {daysLeft} days remaining
+                  </span>
+                </span>
+              )}
+              {daysLeft !== null && daysLeft < 0 && (
+                <span className="text-gray-500 dark:text-gray-500">
+                  {" "}•{" "}expired {Math.abs(daysLeft)} days ago
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-gray-400 dark:text-gray-500">No expiration date</span>
+          )}
+        </p>
+
+        {/* CPE progress bar */}
+        {cert.cpe_required != null && (
+          <div>
+            <p className={`${lbl} mb-1.5`}>CPE Progress</p>
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full transition-all ${
+                  overallPercent >= 67
+                    ? "bg-green-500 dark:bg-green-500"
+                    : overallPercent >= 33
+                      ? "bg-yellow-500 dark:bg-yellow-400"
+                      : "bg-red-500 dark:bg-red-500"
+                }`}
+                style={{ width: `${overallPercent}%` }}
+              />
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {overallPercent}%{" "}
+              <span className="text-gray-400 dark:text-gray-500">
+                ({cpeEarned} of {cert.cpe_required} hrs)
+              </span>
+            </p>
+          </div>
+        )}
+
+        {/* Annual minimum */}
+        {cert.annual_minimum_cpe != null && (
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="font-medium text-gray-600 dark:text-gray-400">
+              Annual Minimum:
+            </span>{" "}
+            0 of {cert.annual_minimum_cpe} hrs
+          </p>
+        )}
+      </div>
+
+      {/* Expandable section — slides open/closed */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${
+          isExpanded ? "max-h-[2000px]" : "max-h-0"
+        }`}
+      >
+        <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 space-y-4">
+          {/* Overall progress */}
+          {cert.cpe_required != null && (
+            <div>
+              <p className={`${lbl} mb-2`}>Overall Progress</p>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <div
+                  className="bg-blue-900 dark:bg-blue-500 h-1.5 rounded-full"
+                  style={{ width: `${overallPercent}%` }}
+                />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {overallPercent}% complete ({cpeEarned}/{cert.cpe_required} hrs)
+              </p>
+            </div>
+          )}
+
+          {/* Annual progress — placeholder until CPE activity logging is built */}
+          {cert.annual_minimum_cpe != null && (
+            <div>
+              <p className={`${lbl} mb-2`}>Annual Progress (Current Year)</p>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                <div className="bg-blue-900 dark:bg-blue-500 h-1.5 rounded-full w-0" />
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                0% complete (0/{cert.annual_minimum_cpe} hrs)
+              </p>
+            </div>
+          )}
+
+          {/* Pace indicator */}
+          {cert.cpe_required != null &&
+            activeStatus === "Active" &&
+            daysLeft !== null &&
+            daysLeft > 0 &&
+            cpeEarned < cert.cpe_required && (
+              <div>
+                <p className={`${lbl} mb-1`}>Pace Indicator</p>
+                {cpePerMonth !== null && (
+                  <p className="text-xs text-gray-700 dark:text-gray-300">
+                    Need {cpePerMonth} CPE/month to stay on track
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  {cpeRemaining} hrs remaining in {daysLeft} days
+                </p>
+              </div>
+            )}
+
+          {/* CPE cycle */}
+          {cert.cpe_cycle_length != null && (
+            <div>
+              <p className={`${lbl} mb-1`}>CPE Cycle</p>
+              <p className="text-xs text-gray-700 dark:text-gray-300">
+                {formatCycleFull(cert.cpe_cycle_length)}
+              </p>
+            </div>
+          )}
+
+          {/* CPE Activities — placeholder for future feature */}
+          <div>
+            <p className={`${lbl} mb-2`}>CPE Activities</p>
+            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Will show logged CPE events here
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 italic">
+                Feature coming soon
+              </p>
+            </div>
+          </div>
+
+          {/* Digital certificate link */}
+          {cert.digital_certificate_url && (
+            <div>
+              <p className={`${lbl} mb-1`}>Digital Certificate</p>
+              <a
+                href={cert.digital_certificate_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline"
+              >
+                🔗 View Certificate
+              </a>
+            </div>
+          )}
+
+          {/* Organization link */}
+          {cert.organization_url && (
+            <div>
+              <p className={`${lbl} mb-1`}>Organization</p>
+              <a
+                href={cert.organization_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline"
+              >
+                🔗 Visit {cert.organization} Website
+              </a>
+            </div>
+          )}
+
+          {/* Edit / Delete */}
+          <div className="flex gap-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <button
+              onClick={() => onEdit(cert)}
+              className="flex-1 px-3 py-2 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+            >
+              Edit Certification
+            </button>
+            <button
+              onClick={() => onDelete(cert.id)}
+              className="flex-1 px-3 py-2 text-xs font-medium text-red-600 dark:text-red-400 bg-white dark:bg-gray-700 border border-red-200 dark:border-red-800 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+            >
+              Delete Certification
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function CertificationsPage() {
   const { user } = useAuth();
@@ -64,20 +428,29 @@ export default function CertificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Form visibility
+  // Card interaction
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sortMode, setSortMode] = useState<SortMode>("priority");
+
+  // Add / edit form
   const [showForm, setShowForm] = useState(false);
+  const [editingCert, setEditingCert] = useState<Certification | null>(null);
   const [form, setForm] = useState<CertFormFields>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  // Per-field validation state
-  const [fieldErrors, setFieldErrors]     = useState<FieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [fieldWarnings, setFieldWarnings] = useState<FieldWarnings>({});
-  // Controls whether inline errors are shown (only after first submit attempt)
   const [hasAttempted, setHasAttempted] = useState(false);
 
-  // ── Shared input class builders ──────────────────────────────────────────────
-  const labelClass = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+  // ── Load sort preference from localStorage ──────────────────────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem(SORT_PREF_KEY);
+    if (saved === "alphabetical" || saved === "priority") setSortMode(saved);
+  }, []);
+
+  // ── Input helpers ───────────────────────────────────────────────────────────
+  const labelClass =
+    "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
 
   function inputCls(key: keyof CertFormFields, extra = "") {
     const base =
@@ -90,7 +463,6 @@ export default function CertificationsPage() {
     return `${base} ${state} ${extra}`.trim();
   }
 
-  // ── Inline error / warning helpers ───────────────────────────────────────────
   function FieldError({ name }: { name: keyof CertFormFields }) {
     const msg = fieldErrors[name];
     if (!msg) return null;
@@ -109,7 +481,7 @@ export default function CertificationsPage() {
     );
   }
 
-  // ── Data fetching ────────────────────────────────────────────────────────────
+  // ── Data fetching ───────────────────────────────────────────────────────────
   async function fetchCerts() {
     if (!user) return;
     setLoading(true);
@@ -117,8 +489,7 @@ export default function CertificationsPage() {
     const { data, error } = await supabase
       .from("certifications")
       .select("*")
-      .eq("user_id", user.id)
-      .order("expiration_date", { ascending: true, nullsFirst: false });
+      .eq("user_id", user.id);
     if (error) {
       setError(error.message);
     } else {
@@ -129,16 +500,19 @@ export default function CertificationsPage() {
 
   useEffect(() => {
     fetchCerts();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // ── Form helpers ─────────────────────────────────────────────────────────────
+  // ── Sort ────────────────────────────────────────────────────────────────────
+  function handleSortChange(mode: SortMode) {
+    setSortMode(mode);
+    localStorage.setItem(SORT_PREF_KEY, mode);
+  }
 
+  // ── Form helpers ────────────────────────────────────────────────────────────
   function field(key: keyof CertFormFields, value: string) {
     const newForm = { ...form, [key]: value };
     setForm(newForm);
-    // Once the user has attempted submission, re-validate on every keystroke
-    // so errors clear in real-time (including cross-field checks like date order).
     if (hasAttempted) {
       const { errors, warnings } = validateCertForm(newForm);
       setFieldErrors(errors);
@@ -152,15 +526,36 @@ export default function CertificationsPage() {
     setFieldWarnings({});
     setFormError(null);
     setHasAttempted(false);
+    setEditingCert(null);
   }
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
+  function openAddForm() {
+    resetForm();
+    setShowForm(true);
+  }
+
+  function openEditForm(cert: Certification) {
+    setEditingCert(cert);
+    setForm(certToFormFields(cert));
+    setFieldErrors({});
+    setFieldWarnings({});
+    setFormError(null);
+    setHasAttempted(false);
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function closeForm() {
+    setShowForm(false);
+    resetForm();
+  }
+
+  // ── Submit (add) ────────────────────────────────────────────────────────────
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setHasAttempted(true);
     setFormError(null);
 
-    // Client-side validation — mirrors server exactly via the shared module
     const { errors, warnings, valid } = validateCertForm(form);
     setFieldErrors(errors);
     setFieldWarnings(warnings);
@@ -184,8 +579,6 @@ export default function CertificationsPage() {
     if (!res.ok) {
       const body = await res.json();
       if (body.errors) {
-        // Server caught something the client missed (shouldn't happen, but
-        // surface it as per-field errors anyway)
         setFieldErrors(body.errors as FieldErrors);
       } else {
         setFormError(body.error ?? "Failed to save certification.");
@@ -194,52 +587,127 @@ export default function CertificationsPage() {
       return;
     }
 
-    // Success
-    resetForm();
-    setShowForm(false);
+    closeForm();
     await fetchCerts();
     setSaving(false);
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Update (edit) ───────────────────────────────────────────────────────────
+  async function handleUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingCert) return;
+    setHasAttempted(true);
+    setFormError(null);
+
+    const { errors, warnings, valid } = validateCertForm(form);
+    setFieldErrors(errors);
+    setFieldWarnings(warnings);
+    if (!valid) return;
+
+    setSaving(true);
+
+    const sanitized = sanitizeCertForm(form);
+    const { error: updateError } = await supabase
+      .from("certifications")
+      .update(sanitized)
+      .eq("id", editingCert.id);
+
+    if (updateError) {
+      setFormError("Failed to update certification. Please try again.");
+      setSaving(false);
+      return;
+    }
+
+    closeForm();
+    await fetchCerts();
+    setSaving(false);
+  }
+
+  // ── Delete ──────────────────────────────────────────────────────────────────
+  async function handleDelete(certId: string) {
+    if (!window.confirm("Delete this certification? This cannot be undone."))
+      return;
+    const { error: delError } = await supabase
+      .from("certifications")
+      .delete()
+      .eq("id", certId);
+    if (delError) {
+      alert("Failed to delete certification. Please try again.");
+      return;
+    }
+    if (expandedId === certId) setExpandedId(null);
+    await fetchCerts();
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+  const sortedCerts = sortCerts(certs, sortMode);
+
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Certifications</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Certifications
+          </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
             Manage your professional certifications and CPE requirements.
           </p>
         </div>
         <button
-          onClick={() => {
-            if (showForm) {
-              resetForm();
-            }
-            setShowForm((v) => !v);
-          }}
+          onClick={showForm ? closeForm : openAddForm}
           className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 active:bg-blue-700 transition-colors shadow-sm"
         >
           {showForm ? (
-            <><span className="text-lg leading-none">×</span> Cancel</>
+            <>
+              <span className="text-lg leading-none">×</span> Cancel
+            </>
           ) : (
-            <><span className="text-lg leading-none">+</span> Add Certification</>
+            <>
+              <span className="text-lg leading-none">+</span> Add Certification
+            </>
           )}
         </button>
       </div>
 
-      {/* Add certification form */}
+      {/* Sort controls — only shown when there are certs to sort */}
+      {!loading && !error && certs.length > 1 && (
+        <div className="flex items-center gap-2 mb-6">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Sort by:
+          </span>
+          <div className="flex gap-1">
+            {(["priority", "alphabetical"] as SortMode[]).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleSortChange(mode)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
+                  sortMode === mode
+                    ? "bg-blue-900 dark:bg-blue-700 text-white"
+                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                {mode === "priority" ? "Priority" : "Alphabetical"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add / Edit form */}
       {showForm && (
-        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-6">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-5">
-            New Certification
+            {editingCert ? "Edit Certification" : "New Certification"}
           </h2>
 
-          {/* noValidate disables browser native bubbles; we show our own messages */}
-          <form onSubmit={handleSubmit} autoComplete="off" noValidate className="space-y-4">
+          <form
+            onSubmit={editingCert ? handleUpdate : handleSubmit}
+            autoComplete="off"
+            noValidate
+            className="space-y-4"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-
               {/* Certification name */}
               <div>
                 <label className={labelClass}>
@@ -252,13 +720,15 @@ export default function CertificationsPage() {
                   onSelect={(t) =>
                     setForm((f) => ({
                       ...f,
-                      name:              t.name,
-                      organization:      t.organization,
-                      organization_url:  t.organization_url,
-                      cpe_required:      String(t.cpe_required),
-                      cpe_cycle_length:  String(t.cpe_cycle_length),
+                      name: t.name,
+                      organization: t.organization,
+                      organization_url: t.organization_url,
+                      cpe_required: String(t.cpe_required),
+                      cpe_cycle_length: String(t.cpe_cycle_length),
                       annual_minimum_cpe:
-                        t.annual_minimum_cpe != null ? String(t.annual_minimum_cpe) : "",
+                        t.annual_minimum_cpe != null
+                          ? String(t.annual_minimum_cpe)
+                          : "",
                     }))
                   }
                 />
@@ -385,7 +855,9 @@ export default function CertificationsPage() {
                 <input
                   type="url"
                   value={form.digital_certificate_url}
-                  onChange={(e) => field("digital_certificate_url", e.target.value)}
+                  onChange={(e) =>
+                    field("digital_certificate_url", e.target.value)
+                  }
                   placeholder="https://..."
                   aria-invalid={!!fieldErrors.digital_certificate_url}
                   className={inputCls("digital_certificate_url")}
@@ -394,7 +866,6 @@ export default function CertificationsPage() {
               </div>
             </div>
 
-            {/* Form-level error (rate limit, server error, etc.) */}
             {formError && (
               <p
                 role="alert"
@@ -404,12 +875,8 @@ export default function CertificationsPage() {
               </p>
             )}
 
-            {/* Summary when there are field errors and user has attempted submit */}
             {hasAttempted && Object.keys(fieldErrors).length > 0 && (
-              <p
-                role="alert"
-                className="text-sm text-red-600 dark:text-red-400"
-              >
+              <p role="alert" className="text-sm text-red-600 dark:text-red-400">
                 Please fix the errors above before saving.
               </p>
             )}
@@ -417,10 +884,7 @@ export default function CertificationsPage() {
             <div className="flex justify-end gap-3 pt-2">
               <button
                 type="button"
-                onClick={() => {
-                  setShowForm(false);
-                  resetForm();
-                }}
+                onClick={closeForm}
                 className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
               >
                 Cancel
@@ -430,7 +894,13 @@ export default function CertificationsPage() {
                 disabled={saving}
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
-                {saving ? "Saving…" : "Save Certification"}
+                {saving
+                  ? editingCert
+                    ? "Updating…"
+                    : "Saving…"
+                  : editingCert
+                    ? "Update Certification"
+                    : "Save Certification"}
               </button>
             </div>
           </form>
@@ -457,127 +927,19 @@ export default function CertificationsPage() {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {certs.map((cert) => {
-            const status = getStatus(cert.expiration_date);
-            const cycle = formatCycle(cert.cpe_cycle_length);
-            return (
-              <div
-                key={cert.id}
-                className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-5 flex flex-col gap-3 hover:shadow-md transition-shadow"
-              >
-                {/* Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <h3 className="font-semibold text-gray-900 dark:text-gray-100 text-sm leading-snug">
-                    {cert.name}
-                  </h3>
-                  {status && (
-                    <span
-                      className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${status.color}`}
-                    >
-                      {status.label}
-                    </span>
-                  )}
-                </div>
-
-                {/* Organization */}
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {cert.organization_url ? (
-                    <a
-                      href={cert.organization_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-900 dark:text-blue-400 hover:underline font-medium"
-                    >
-                      {cert.organization}
-                    </a>
-                  ) : (
-                    <span className="font-medium text-gray-700 dark:text-gray-300">
-                      {cert.organization}
-                    </span>
-                  )}
-                </div>
-
-                <hr className="border-gray-100 dark:border-gray-700" />
-
-                {/* Details grid */}
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                  <div>
-                    <dt className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide text-[10px]">
-                      Issued
-                    </dt>
-                    <dd className="text-gray-700 dark:text-gray-300 mt-0.5">
-                      {formatDate(cert.issue_date)}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide text-[10px]">
-                      Expires
-                    </dt>
-                    <dd className="text-gray-700 dark:text-gray-300 mt-0.5">
-                      {formatDate(cert.expiration_date)}
-                    </dd>
-                  </div>
-
-                  {cert.cpe_required != null && (
-                    <div>
-                      <dt className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide text-[10px]">
-                        CPE Required
-                      </dt>
-                      <dd className="text-gray-700 dark:text-gray-300 mt-0.5">
-                        {cert.cpe_required} hrs{cycle ? ` / ${cycle}` : ""}
-                      </dd>
-                    </div>
-                  )}
-
-                  {cert.annual_minimum_cpe != null && (
-                    <div>
-                      <dt className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide text-[10px]">
-                        Annual Min
-                      </dt>
-                      <dd className="text-gray-700 dark:text-gray-300 mt-0.5">
-                        {cert.annual_minimum_cpe} hrs/yr
-                      </dd>
-                    </div>
-                  )}
-
-                  {status && status.daysLeft >= 0 && (
-                    <div>
-                      <dt className="text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide text-[10px]">
-                        Days Left
-                      </dt>
-                      <dd className="text-gray-700 dark:text-gray-300 mt-0.5">{status.daysLeft}</dd>
-                    </div>
-                  )}
-                </dl>
-
-                {/* Certificate link */}
-                {cert.digital_certificate_url && (
-                  <a
-                    href={cert.digital_certificate_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-auto inline-flex items-center gap-1.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
-                  >
-                    <svg
-                      className="w-3.5 h-3.5"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                      />
-                    </svg>
-                    View Certificate
-                  </a>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex flex-col gap-3">
+          {sortedCerts.map((cert) => (
+            <CertCard
+              key={cert.id}
+              cert={cert}
+              isExpanded={expandedId === cert.id}
+              onToggle={() =>
+                setExpandedId(expandedId === cert.id ? null : cert.id)
+              }
+              onEdit={openEditForm}
+              onDelete={handleDelete}
+            />
+          ))}
         </div>
       )}
     </main>
