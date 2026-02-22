@@ -4,18 +4,31 @@ import { useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
+const inputClass =
+  "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm";
+
 export default function SignupPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [firstName, setFirstName]           = useState("");
+  const [lastName, setLastName]             = useState("");
+  const [email, setEmail]                   = useState("");
+  const [password, setPassword]             = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [error, setError]                   = useState<string | null>(null);
+  const [success, setSuccess]               = useState(false);
+  const [loading, setLoading]               = useState(false);
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
+    if (!firstName.trim()) {
+      setError("First name is required.");
+      return;
+    }
+    if (!lastName.trim()) {
+      setError("Last name is required.");
+      return;
+    }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
       return;
@@ -26,7 +39,19 @@ export default function SignupPage() {
     }
 
     setLoading(true);
-    const { error } = await supabase.auth.signUp({ email, password });
+
+    // Pass names as user metadata so the Postgres trigger can create the
+    // profile row (user_profiles) automatically on signup.
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: firstName.trim(),
+          last_name:  lastName.trim(),
+        },
+      },
+    });
 
     if (error) {
       setError(error.message);
@@ -72,19 +97,60 @@ export default function SignupPage() {
           Start tracking your CPE requirements
         </p>
 
-        <form onSubmit={handleSignup} className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4" noValidate>
           {error && (
             <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2.5 text-red-700 dark:text-red-400 text-sm">
               {error}
             </div>
           )}
 
+          {/* Name row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label
+                htmlFor="firstName"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                First Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="firstName"
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                required
+                autoComplete="given-name"
+                placeholder="Jane"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="lastName"
+                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+              >
+                Last Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="lastName"
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                required
+                autoComplete="family-name"
+                placeholder="Smith"
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          {/* Email */}
           <div>
             <label
               htmlFor="email"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Email
+              Email <span className="text-red-500">*</span>
             </label>
             <input
               id="email"
@@ -94,16 +160,17 @@ export default function SignupPage() {
               required
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 
+          {/* Password */}
           <div>
             <label
               htmlFor="password"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Password
+              Password <span className="text-red-500">*</span>
             </label>
             <input
               id="password"
@@ -113,19 +180,20 @@ export default function SignupPage() {
               required
               autoComplete="new-password"
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
             <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
               Minimum 8 characters
             </p>
           </div>
 
+          {/* Confirm password */}
           <div>
             <label
               htmlFor="confirmPassword"
               className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
-              Confirm Password
+              Confirm Password <span className="text-red-500">*</span>
             </label>
             <input
               id="confirmPassword"
@@ -135,7 +203,7 @@ export default function SignupPage() {
               required
               autoComplete="new-password"
               placeholder="••••••••"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm"
+              className={inputClass}
             />
           </div>
 

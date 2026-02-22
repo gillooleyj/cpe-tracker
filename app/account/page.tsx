@@ -4,7 +4,77 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../AuthProvider";
 import { supabase } from "@/lib/supabase";
 
-type Panel = null | "regenerate" | "disable";
+// ── Static option lists ───────────────────────────────────────────────────────
+
+const ORG_TYPE_OPTIONS = [
+  "Federal Government",
+  "State/Local Government",
+  "DoD/Defense Contractor",
+  "Healthcare Organization",
+  "Financial Services",
+  "Technology Company",
+  "Consulting Firm",
+  "Educational Institution",
+  "Non-Profit Organization",
+  "Self-Employed/Independent Consultant",
+  "Private Sector - Small (under 50 employees)",
+  "Private Sector - Medium (50–500 employees)",
+  "Private Sector - Large (500+ employees)",
+  "Other",
+] as const;
+
+const CERT_FOCUS_OPTIONS = [
+  "Cybersecurity (CISSP, CISM, CEH, etc.)",
+  "IT Management (ITIL, COBIT, etc.)",
+  "Project Management (PMP, CAPM, etc.)",
+  "Scrum/Agile (CSM, CSPO, SAFe, etc.)",
+  "Cloud Computing (AWS, Azure, GCP, etc.)",
+  "Privacy/Compliance (CIPP, CIPM, CGRC, etc.)",
+  "Risk Management (CRISC, etc.)",
+  "Multiple Focus Areas",
+  "Other",
+] as const;
+
+const HOW_HEARD_OPTIONS = [
+  "Search engine",
+  "Social media",
+  "Colleague / referral",
+  "Conference or event",
+  "Online article or blog",
+  "Other",
+] as const;
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+type Profile = {
+  first_name:          string;
+  last_name:           string;
+  job_title:           string;
+  organization_type:   string;
+  city:                string;
+  state_province:      string;
+  postal_code:         string;
+  country:             string;
+  how_heard:           string;
+  certification_focus: string;
+};
+
+const EMPTY_PROFILE: Profile = {
+  first_name:          "",
+  last_name:           "",
+  job_title:           "",
+  organization_type:   "",
+  city:                "",
+  state_province:      "",
+  postal_code:         "",
+  country:             "",
+  how_heard:           "",
+  certification_focus: "",
+};
+
+type MfaPanel = null | "regenerate" | "disable";
+
+// ── Backup-code helpers (unchanged from original) ─────────────────────────────
 
 async function hashCode(code: string): Promise<string> {
   const clean = code.replace("-", "").toUpperCase();
@@ -28,25 +98,64 @@ function generateBackupCodes(): string[] {
   });
 }
 
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export default function AccountPage() {
   const { user } = useAuth();
 
-  const [factorId, setFactorId] = useState<string | null>(null);
-  const [unusedCodeCount, setUnusedCodeCount] = useState<number | null>(null);
-  const [loadingMeta, setLoadingMeta] = useState(true);
-
-  // Panel / form state
-  const [panel, setPanel] = useState<Panel>(null);
-  const [panelCode, setPanelCode] = useState("");
-  const [panelError, setPanelError] = useState<string | null>(null);
-  const [panelLoading, setPanelLoading] = useState(false);
-
-  // New backup codes after regeneration
-  const [newCodes, setNewCodes] = useState<string[]>([]);
-
+  // ── Shared styles ──────────────────────────────────────────────────────────
   const inputClass =
     "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm";
+  const labelClass =
+    "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
+  const selectClass =
+    "w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent text-sm";
 
+  // ── Profile state ──────────────────────────────────────────────────────────
+  const [profile, setProfile]               = useState<Profile>(EMPTY_PROFILE);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileSaving, setProfileSaving]   = useState(false);
+  const [profileSaveMsg, setProfileSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // ── MFA state ──────────────────────────────────────────────────────────────
+  const [factorId, setFactorId]             = useState<string | null>(null);
+  const [unusedCodeCount, setUnusedCodeCount] = useState<number | null>(null);
+  const [loadingMeta, setLoadingMeta]       = useState(true);
+  const [panel, setPanel]                   = useState<MfaPanel>(null);
+  const [panelCode, setPanelCode]           = useState("");
+  const [panelError, setPanelError]         = useState<string | null>(null);
+  const [panelLoading, setPanelLoading]     = useState(false);
+  const [newCodes, setNewCodes]             = useState<string[]>([]);
+
+  // ── Load profile ───────────────────────────────────────────────────────────
+  const loadProfile = useCallback(async () => {
+    if (!user) return;
+    setProfileLoading(true);
+
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (data) {
+      setProfile({
+        first_name:          data.first_name          ?? "",
+        last_name:           data.last_name           ?? "",
+        job_title:           data.job_title           ?? "",
+        organization_type:   data.organization_type   ?? "",
+        city:                data.city                ?? "",
+        state_province:      data.state_province      ?? "",
+        postal_code:         data.postal_code         ?? "",
+        country:             data.country             ?? "",
+        how_heard:           data.how_heard           ?? "",
+        certification_focus: data.certification_focus ?? "",
+      });
+    }
+    setProfileLoading(false);
+  }, [user]);
+
+  // ── Load MFA meta ──────────────────────────────────────────────────────────
   const loadMeta = useCallback(async () => {
     setLoadingMeta(true);
     const { data: factors } = await supabase.auth.mfa.listFactors();
@@ -66,24 +175,74 @@ export default function AccountPage() {
   }, [user]);
 
   useEffect(() => {
+    loadProfile();
     loadMeta();
-  }, [loadMeta]);
+  }, [loadProfile, loadMeta]);
 
-  function openPanel(p: Panel) {
+  // ── Profile field helper ───────────────────────────────────────────────────
+  function pf(key: keyof Profile, value: string) {
+    setProfile((p) => ({ ...p, [key]: value }));
+  }
+
+  // ── Save profile ───────────────────────────────────────────────────────────
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileSaveMsg(null);
+
+    if (!profile.first_name.trim()) {
+      setProfileSaveMsg({ type: "error", text: "First name is required." });
+      return;
+    }
+    if (!profile.last_name.trim()) {
+      setProfileSaveMsg({ type: "error", text: "Last name is required." });
+      return;
+    }
+
+    setProfileSaving(true);
+
+    const payload = {
+      user_id:             user!.id,
+      first_name:          profile.first_name.trim(),
+      last_name:           profile.last_name.trim(),
+      job_title:           profile.job_title.trim()           || null,
+      organization_type:   profile.organization_type          || null,
+      city:                profile.city.trim()                || null,
+      state_province:      profile.state_province.trim()      || null,
+      postal_code:         profile.postal_code.trim()         || null,
+      country:             profile.country.trim()             || null,
+      how_heard:           profile.how_heard                  || null,
+      certification_focus: profile.certification_focus.trim() || null,
+    };
+
+    const { error } = await supabase
+      .from("user_profiles")
+      .upsert(payload, { onConflict: "user_id" });
+
+    setProfileSaving(false);
+
+    if (error) {
+      setProfileSaveMsg({ type: "error", text: "Failed to save profile. Please try again." });
+    } else {
+      setProfileSaveMsg({ type: "success", text: "Profile saved." });
+      // Auto-clear the success message after 4 seconds
+      setTimeout(() => setProfileSaveMsg(null), 4_000);
+    }
+  }
+
+  // ── MFA helpers (unchanged from original) ─────────────────────────────────
+  function openPanel(p: MfaPanel) {
     setPanel(p);
     setPanelCode("");
     setPanelError(null);
     setNewCodes([]);
   }
 
-  // ── Regenerate backup codes ─────────────────────────────────────────────────
   async function handleRegenerate(e: React.FormEvent) {
     e.preventDefault();
     if (!factorId || !user) return;
     setPanelLoading(true);
     setPanelError(null);
 
-    // Verify TOTP to confirm identity
     const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
       factorId,
       code: panelCode,
@@ -94,7 +253,6 @@ export default function AccountPage() {
       return;
     }
 
-    // Delete old codes, generate new
     await supabase
       .from("backup_codes")
       .delete()
@@ -104,11 +262,7 @@ export default function AccountPage() {
     const codes = generateBackupCodes();
     const hashes = await Promise.all(codes.map(hashCode));
     await supabase.from("backup_codes").insert(
-      hashes.map((code_hash) => ({
-        user_id: user.id,
-        factor_id: factorId,
-        code_hash,
-      }))
+      hashes.map((code_hash) => ({ user_id: user.id, factor_id: factorId, code_hash }))
     );
 
     setNewCodes(codes);
@@ -116,14 +270,12 @@ export default function AccountPage() {
     setPanelLoading(false);
   }
 
-  // ── Disable MFA ─────────────────────────────────────────────────────────────
   async function handleDisable(e: React.FormEvent) {
     e.preventDefault();
     if (!factorId || !user) return;
     setPanelLoading(true);
     setPanelError(null);
 
-    // Verify TOTP → upgrades to aal2, required to call unenroll
     const { error: verifyError } = await supabase.auth.mfa.challengeAndVerify({
       factorId,
       code: panelCode,
@@ -134,7 +286,6 @@ export default function AccountPage() {
       return;
     }
 
-    // Unenroll the factor
     const { error: unenrollError } = await supabase.auth.mfa.unenroll({ factorId });
     if (unenrollError) {
       setPanelError("Failed to disable MFA. Please try again.");
@@ -142,14 +293,12 @@ export default function AccountPage() {
       return;
     }
 
-    // Delete backup codes
     await supabase
       .from("backup_codes")
       .delete()
       .eq("user_id", user.id)
       .eq("factor_id", factorId);
 
-    // Refresh session — middleware will redirect to /mfa/setup since factor is gone
     await supabase.auth.refreshSession();
     window.location.href = "/mfa/setup";
   }
@@ -169,6 +318,7 @@ export default function AccountPage() {
     a.click();
   }
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
@@ -178,22 +328,215 @@ export default function AccountPage() {
         Manage your profile and security settings.
       </p>
 
-      {/* Profile section */}
+      {/* ── Profile section ─────────────────────────────────────────────────── */}
       <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-6">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-5">
           Profile
         </h2>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Email
-          </label>
-          <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2">
-            {user?.email ?? "—"}
-          </p>
-        </div>
+
+        {profileLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 py-4">
+            <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+            Loading profile…
+          </div>
+        ) : (
+          <form onSubmit={handleSaveProfile} noValidate className="space-y-5">
+
+            {/* Email — read-only */}
+            <div>
+              <label className={labelClass}>Email</label>
+              <p className="text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-3 py-2">
+                {user?.email ?? "—"}
+              </p>
+            </div>
+
+            {/* Name row */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="firstName" className={labelClass}>
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  value={profile.first_name}
+                  onChange={(e) => pf("first_name", e.target.value)}
+                  autoComplete="given-name"
+                  placeholder="Jane"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="lastName" className={labelClass}>
+                  Last Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  id="lastName"
+                  type="text"
+                  value={profile.last_name}
+                  onChange={(e) => pf("last_name", e.target.value)}
+                  autoComplete="family-name"
+                  placeholder="Smith"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <hr className="border-gray-100 dark:border-gray-700" />
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              Optional Details
+            </p>
+
+            {/* Job title */}
+            <div>
+              <label htmlFor="jobTitle" className={labelClass}>Job Title / Role</label>
+              <input
+                id="jobTitle"
+                type="text"
+                value={profile.job_title}
+                onChange={(e) => pf("job_title", e.target.value)}
+                autoComplete="organization-title"
+                placeholder="e.g. Security Analyst"
+                className={inputClass}
+              />
+            </div>
+
+            {/* Organization type */}
+            <div>
+              <label htmlFor="orgType" className={labelClass}>Organization Type</label>
+              <select
+                id="orgType"
+                value={profile.organization_type}
+                onChange={(e) => pf("organization_type", e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select type…</option>
+                {ORG_TYPE_OPTIONS.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Location */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="city" className={labelClass}>City</label>
+                <input
+                  id="city"
+                  type="text"
+                  value={profile.city}
+                  onChange={(e) => pf("city", e.target.value)}
+                  autoComplete="address-level2"
+                  placeholder="e.g. Washington"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="stateProvince" className={labelClass}>
+                  State / Province / Region
+                </label>
+                <input
+                  id="stateProvince"
+                  type="text"
+                  value={profile.state_province}
+                  onChange={(e) => pf("state_province", e.target.value)}
+                  autoComplete="address-level1"
+                  placeholder="e.g. DC"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="postalCode" className={labelClass}>
+                  Postal Code / ZIP
+                </label>
+                <input
+                  id="postalCode"
+                  type="text"
+                  value={profile.postal_code}
+                  onChange={(e) => pf("postal_code", e.target.value)}
+                  autoComplete="postal-code"
+                  placeholder="e.g. 20001"
+                  className={inputClass}
+                />
+              </div>
+              <div>
+                <label htmlFor="country" className={labelClass}>Country</label>
+                <input
+                  id="country"
+                  type="text"
+                  value={profile.country}
+                  onChange={(e) => pf("country", e.target.value)}
+                  autoComplete="country-name"
+                  placeholder="e.g. United States"
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            {/* How heard */}
+            <div>
+              <label htmlFor="howHeard" className={labelClass}>
+                How did you hear about CPE Tracker?
+              </label>
+              <select
+                id="howHeard"
+                value={profile.how_heard}
+                onChange={(e) => pf("how_heard", e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select…</option>
+                {HOW_HEARD_OPTIONS.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Primary certification focus */}
+            <div>
+              <label htmlFor="certFocus" className={labelClass}>
+                Primary Certification Focus
+              </label>
+              <select
+                id="certFocus"
+                value={profile.certification_focus}
+                onChange={(e) => pf("certification_focus", e.target.value)}
+                className={selectClass}
+              >
+                <option value="">Select focus area…</option>
+                {CERT_FOCUS_OPTIONS.map((o) => (
+                  <option key={o} value={o}>{o}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Save feedback */}
+            {profileSaveMsg && (
+              <p
+                role="status"
+                className={`text-sm ${
+                  profileSaveMsg.type === "success"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {profileSaveMsg.text}
+              </p>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 hover:bg-blue-800 dark:hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {profileSaving ? "Saving…" : "Save Profile"}
+              </button>
+            </div>
+          </form>
+        )}
       </section>
 
-      {/* MFA section */}
+      {/* ── MFA section (unchanged) ─────────────────────────────────────────── */}
       <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
@@ -273,9 +616,7 @@ export default function AccountPage() {
                       Enter your current authenticator code to generate new backup codes. Your old codes will be invalidated.
                     </p>
                     {panelError && (
-                      <p className="text-sm text-red-600 dark:text-red-400">
-                        {panelError}
-                      </p>
+                      <p className="text-sm text-red-600 dark:text-red-400">{panelError}</p>
                     )}
                     <input
                       type="text"
