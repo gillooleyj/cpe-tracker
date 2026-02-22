@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase, type Certification } from "@/lib/supabase";
+import Link from "next/link";
+import { supabase, type Certification, type LinkedActivity } from "@/lib/supabase";
 import {
   validateCertForm,
   sanitizeCertForm,
@@ -37,6 +38,7 @@ const EMPTY_FORM: CertFormFields = {
 };
 
 const SORT_PREF_KEY = "cpe-tracker-sort-mode";
+const RTS_KEY = "cpe-tracker-rts-collapsed";
 
 const SMART_PRIORITY: Record<string, number> = {
   Urgent: 0,
@@ -135,6 +137,22 @@ function formatCycleFull(months: number | null): string | null {
   return `${months} months`;
 }
 
+function formatHrs(h: number) {
+  return h % 1 === 0 ? `${h}` : h.toFixed(2);
+}
+
+function displayFileName(path: string): string {
+  const base = path.split("/").pop() ?? path;
+  return base.replace(/^\d+_/, "");
+}
+
+async function openAttachment(path: string) {
+  const { data } = await supabase.storage
+    .from("cpe-attachments")
+    .createSignedUrl(path, 300);
+  if (data?.signedUrl) window.open(data.signedUrl, "_blank");
+}
+
 function certToFormFields(cert: Certification): CertFormFields {
   return {
     name: cert.name,
@@ -155,16 +173,22 @@ function certToFormFields(cert: Certification): CertFormFields {
 
 function CertCard({
   cert,
+  activities,
   isExpanded,
   onToggle,
   onEdit,
   onDelete,
+  onMarkSubmitted,
+  onBulkConfirm,
 }: {
   cert: Certification;
+  activities: LinkedActivity[];
   isExpanded: boolean;
   onToggle: () => void;
   onEdit: (cert: Certification) => void;
   onDelete: (id: string) => void;
+  onMarkSubmitted: (a: LinkedActivity, certName: string) => void;
+  onBulkConfirm: (certId: string) => void;
 }) {
   const activeStatus = getActiveStatus(cert);
   const smartStatus = getSmartStatus(cert);
@@ -185,6 +209,32 @@ function CertCard({
       ? (cpeRemaining / monthsRemaining).toFixed(1)
       : null;
 
+  // Annual progress from actual logged activities in the current calendar year
+  const currentYear = new Date().getFullYear();
+  const annualEarned = activities
+    .filter(
+      (a) =>
+        new Date(a.activity_date + "T00:00:00Z").getFullYear() === currentYear
+    )
+    .reduce((sum, a) => sum + a.hours_applied, 0);
+  const annualPercent =
+    cert.annual_minimum_cpe && cert.annual_minimum_cpe > 0
+      ? Math.min(100, Math.round((annualEarned / cert.annual_minimum_cpe) * 100))
+      : 0;
+
+  // Submission summary
+  const submittedHrs = activities.filter(a => a.submitted_to_org).reduce((s, a) => s + a.hours_applied, 0);
+  const pendingHrs   = activities.filter(a => !a.submitted_to_org).reduce((s, a) => s + a.hours_applied, 0);
+  const unsubmittedCount = activities.filter(a => !a.submitted_to_org).length;
+  const lastSubmittedDate = activities
+    .filter(a => a.submitted_to_org && a.submitted_date)
+    .map(a => a.submitted_date!)
+    .sort()
+    .at(-1) ?? null;
+  const daysSinceLastSubmission = lastSubmittedDate
+    ? Math.floor((Date.now() - new Date(lastSubmittedDate + "T00:00:00Z").getTime()) / 86400000)
+    : null;
+
   const lbl =
     "text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500";
 
@@ -204,15 +254,22 @@ function CertCard({
               {isExpanded ? "▲" : "▼"}
             </span>
           </div>
-          <span
-            className={`shrink-0 text-xs font-semibold px-2 py-0.5 rounded-full ${
-              activeStatus === "Active"
-                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
-                : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
-            }`}
-          >
-            {activeStatus}
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            {unsubmittedCount > 0 && !isExpanded && (
+              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+                {unsubmittedCount} to submit
+              </span>
+            )}
+            <span
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                activeStatus === "Active"
+                  ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                  : "bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+              }`}
+            >
+              {activeStatus}
+            </span>
+          </div>
         </div>
         <div className="flex items-center justify-between mt-1 gap-3">
           <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
@@ -294,7 +351,7 @@ function CertCard({
       {/* Expandable section — slides open/closed */}
       <div
         className={`overflow-hidden transition-all duration-300 ease-in-out ${
-          isExpanded ? "max-h-[2000px]" : "max-h-0"
+          isExpanded ? "max-h-[3000px]" : "max-h-0"
         }`}
       >
         <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 space-y-4">
@@ -314,15 +371,18 @@ function CertCard({
             </div>
           )}
 
-          {/* Annual progress — placeholder until CPE activity logging is built */}
+          {/* Annual progress — from logged activities in the current calendar year */}
           {cert.annual_minimum_cpe != null && (
             <div>
               <p className={`${lbl} mb-2`}>Annual Progress (Current Year)</p>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                <div className="bg-blue-900 dark:bg-blue-500 h-1.5 rounded-full w-0" />
+                <div
+                  className="bg-blue-900 dark:bg-blue-500 h-1.5 rounded-full transition-all"
+                  style={{ width: `${annualPercent}%` }}
+                />
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                0% complete (0/{cert.annual_minimum_cpe} hrs)
+                {annualPercent}% complete ({formatHrs(annualEarned)}/{cert.annual_minimum_cpe} hrs)
               </p>
             </div>
           )}
@@ -356,17 +416,148 @@ function CertCard({
             </div>
           )}
 
-          {/* CPE Activities — placeholder for future feature */}
+          {/* CPE Activities */}
           <div>
-            <p className={`${lbl} mb-2`}>CPE Activities</p>
-            <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
-              <p className="text-xs text-gray-400 dark:text-gray-500">
-                Will show logged CPE events here
-              </p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 italic">
-                Feature coming soon
-              </p>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <p className={lbl}>CPE Activities</p>
+                {cert.organization_url && (
+                  <a
+                    href={cert.organization_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
+                    title={`Submit CPE to ${cert.organization}`}
+                  >
+                    🔗 Submit CPE
+                  </a>
+                )}
+              </div>
+              <Link
+                href={`/cpe-activities?cert=${cert.id}`}
+                className="text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline"
+              >
+                + Log Activity
+              </Link>
             </div>
+
+            {activities.length === 0 ? (
+              <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  No CPE activities logged yet.
+                </p>
+                <Link
+                  href={`/cpe-activities?cert=${cert.id}`}
+                  className="text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline mt-1 block"
+                >
+                  Add your first CPE activity →
+                </Link>
+              </div>
+            ) : (
+              <>
+                {/* Submission summary line */}
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                  <span className="text-green-700 dark:text-green-400 font-medium">
+                    {formatHrs(submittedHrs)} hrs submitted
+                  </span>
+                  {pendingHrs > 0 && (
+                    <>
+                      {" · "}
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">
+                        {formatHrs(pendingHrs)} hrs pending
+                      </span>
+                    </>
+                  )}
+                </p>
+
+                {/* Reminder banners */}
+                {pendingHrs > 20 && (
+                  <div className="mb-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg text-xs text-amber-700 dark:text-amber-400">
+                    You have {formatHrs(pendingHrs)} unsubmitted hours — consider reporting to {cert.organization}.
+                  </div>
+                )}
+                {daysLeft !== null && daysLeft < 90 && pendingHrs > 0 && (
+                  <div className="mb-2 px-3 py-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-xs text-red-700 dark:text-red-400">
+                    Expiry in {daysLeft} days with {formatHrs(pendingHrs)} hrs unsubmitted — submit soon!
+                  </div>
+                )}
+                {daysSinceLastSubmission !== null && daysSinceLastSubmission > 180 && (
+                  <div className="mb-2 px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-700 dark:text-blue-400">
+                    Last submission was {daysSinceLastSubmission} days ago — consider submitting recent activities.
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {activities.map((a) => (
+                    <div
+                      key={a.junction_id}
+                      className="group flex items-start justify-between gap-3 px-3 py-2.5 bg-gray-50 dark:bg-gray-900/40 rounded-lg border border-gray-100 dark:border-gray-700 hover:border-blue-200 dark:hover:border-blue-800 hover:bg-white dark:hover:bg-gray-800/60 transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span className="text-sm" title={a.submitted_to_org ? "Submitted" : "Pending submission"}>
+                            {a.submitted_to_org ? "✅" : "⏳"}
+                          </span>
+                          <Link
+                            href={`/cpe-activities?highlight=${a.activity_id}`}
+                            className="text-xs font-medium text-gray-800 dark:text-gray-200 hover:text-blue-900 dark:hover:text-blue-400 hover:underline truncate"
+                          >
+                            {a.title}
+                          </Link>
+                        </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 ml-5">
+                          {a.provider} · {formatDate(a.activity_date)}
+                        </p>
+                        {a.submitted_to_org && a.submitted_date && (
+                          <p className="text-xs text-green-600 dark:text-green-400 ml-5 mt-0.5">
+                            Submitted {formatDate(a.submitted_date)}
+                            {a.submission_notes && (
+                              <span className="text-gray-500 dark:text-gray-500"> · {a.submission_notes}</span>
+                            )}
+                          </p>
+                        )}
+                        {a.attachment_urls.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-1 ml-5">
+                            {a.attachment_urls.map((path) => (
+                              <button
+                                key={path}
+                                onClick={() => openAttachment(path)}
+                                className="text-xs text-blue-900 dark:text-blue-400 hover:underline"
+                              >
+                                📎 {displayFileName(path)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1.5 shrink-0">
+                        <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                          {formatHrs(a.hours_applied)} hrs
+                        </span>
+                        {!a.submitted_to_org && (
+                          <button
+                            onClick={() => onMarkSubmitted(a, cert.name)}
+                            className="text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 border border-amber-300 dark:border-amber-700 rounded px-1.5 py-0.5 transition-colors"
+                          >
+                            Mark Submitted
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bulk mark button */}
+                {unsubmittedCount > 0 && (
+                  <button
+                    onClick={() => onBulkConfirm(cert.id)}
+                    className="mt-2 w-full px-3 py-2 text-xs font-medium text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors"
+                  >
+                    Mark All Unsubmitted ({unsubmittedCount}) as Submitted
+                  </button>
+                )}
+              </>
+            )}
           </div>
 
           {/* Digital certificate link */}
@@ -425,6 +616,9 @@ function CertCard({
 export default function CertificationsPage() {
   const { user } = useAuth();
   const [certs, setCerts] = useState<Certification[]>([]);
+  const [linkedActivities, setLinkedActivities] = useState<
+    Record<string, LinkedActivity[]>
+  >({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -441,6 +635,27 @@ export default function CertificationsPage() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [fieldWarnings, setFieldWarnings] = useState<FieldWarnings>({});
   const [hasAttempted, setHasAttempted] = useState(false);
+
+  // Submission modal
+  const [submitModal, setSubmitModal] = useState<{
+    junctionId: string;
+    activityDate: string;
+    certName: string;
+    activityTitle: string;
+  } | null>(null);
+  const [submitDate, setSubmitDate] = useState("");
+  const [submitNotes, setSubmitNotes] = useState("");
+  const [submitSaving, setSubmitSaving] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Ready-to-Submit widget
+  const [rtsCollapsed, setRtsCollapsed] = useState(() =>
+    typeof window !== "undefined" ? localStorage.getItem(RTS_KEY) !== "false" : true
+  );
+
+  // Bulk confirm
+  const [bulkConfirmCertId, setBulkConfirmCertId] = useState<string | null>(null);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   // ── Load sort preference from localStorage ──────────────────────────────────
   useEffect(() => {
@@ -486,15 +701,76 @@ export default function CertificationsPage() {
     if (!user) return;
     setLoading(true);
     setError(null);
-    const { data, error } = await supabase
+
+    const { data: certsData, error: certsErr } = await supabase
       .from("certifications")
       .select("*")
       .eq("user_id", user.id);
-    if (error) {
-      setError(error.message);
-    } else {
-      setCerts(data ?? []);
+
+    if (certsErr) {
+      setError(certsErr.message);
+      setLoading(false);
+      return;
     }
+
+    const loadedCerts = (certsData ?? []) as Certification[];
+    setCerts(loadedCerts);
+
+    // Fetch linked activities for all certs in one query
+    if (loadedCerts.length > 0) {
+      const { data: junctionData } = await supabase
+        .from("certification_activities")
+        .select(
+          "id, certification_id, hours_applied, submitted_to_org, submitted_date, submission_notes, cpe_activities(id, title, provider, activity_date, attachment_urls)"
+        )
+        .in(
+          "certification_id",
+          loadedCerts.map((c) => c.id)
+        );
+
+      if (junctionData) {
+        const byId: Record<string, LinkedActivity[]> = {};
+        for (const row of junctionData as unknown as Array<{
+          id: string;
+          certification_id: string;
+          hours_applied: number;
+          submitted_to_org: boolean;
+          submitted_date: string | null;
+          submission_notes: string | null;
+          cpe_activities: {
+            id: string;
+            title: string;
+            provider: string;
+            activity_date: string;
+            attachment_urls: string[];
+          } | null;
+        }>) {
+          const act = row.cpe_activities;
+          if (!act) continue;
+          if (!byId[row.certification_id]) byId[row.certification_id] = [];
+          byId[row.certification_id].push({
+            junction_id:      row.id,
+            activity_id:      act.id,
+            hours_applied:    Number(row.hours_applied),
+            submitted_to_org: row.submitted_to_org,
+            submitted_date:   row.submitted_date ?? null,
+            submission_notes: row.submission_notes ?? null,
+            title:            act.title,
+            provider:         act.provider,
+            activity_date:    act.activity_date,
+            attachment_urls:  act.attachment_urls ?? [],
+          });
+        }
+        // Sort each cert's activities by date descending
+        for (const id of Object.keys(byId)) {
+          byId[id].sort((a, b) => b.activity_date.localeCompare(a.activity_date));
+        }
+        setLinkedActivities(byId);
+      }
+    } else {
+      setLinkedActivities({});
+    }
+
     setLoading(false);
   }
 
@@ -507,6 +783,74 @@ export default function CertificationsPage() {
   function handleSortChange(mode: SortMode) {
     setSortMode(mode);
     localStorage.setItem(SORT_PREF_KEY, mode);
+  }
+
+  // ── Submission modal helpers ─────────────────────────────────────────────────
+  function openSubmitModal(a: LinkedActivity, certName: string) {
+    setSubmitModal({
+      junctionId: a.junction_id,
+      activityDate: a.activity_date,
+      certName,
+      activityTitle: a.title,
+    });
+    setSubmitDate(new Date().toISOString().slice(0, 10));
+    setSubmitNotes("");
+    setSubmitError(null);
+  }
+
+  function closeSubmitModal() {
+    setSubmitModal(null);
+    setSubmitDate("");
+    setSubmitNotes("");
+    setSubmitError(null);
+  }
+
+  async function handleMarkSubmitted() {
+    if (!submitModal) return;
+    setSubmitSaving(true);
+    setSubmitError(null);
+    const res = await fetch(`/api/cert-activity-links/${submitModal.junctionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submitted_to_org: true,
+        submitted_date: submitDate || null,
+        submission_notes: submitNotes.trim() || null,
+      }),
+    });
+    if (!res.ok) {
+      const d = await res.json();
+      setSubmitError(d.error ?? "Failed to save.");
+      setSubmitSaving(false);
+      return;
+    }
+    closeSubmitModal();
+    await fetchCerts();
+    setSubmitSaving(false);
+  }
+
+  async function handleBulkMarkSubmitted(certId: string) {
+    const unsubmitted = (linkedActivities[certId] ?? []).filter(a => !a.submitted_to_org);
+    setBulkSaving(true);
+    const today = new Date().toISOString().slice(0, 10);
+    for (const a of unsubmitted) {
+      await fetch(`/api/cert-activity-links/${a.junction_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submitted_to_org: true, submitted_date: today, submission_notes: null }),
+      });
+    }
+    setBulkConfirmCertId(null);
+    setBulkSaving(false);
+    await fetchCerts();
+  }
+
+  function toggleRts() {
+    setRtsCollapsed(prev => {
+      const next = !prev;
+      localStorage.setItem(RTS_KEY, String(next));
+      return next;
+    });
   }
 
   // ── Form helpers ────────────────────────────────────────────────────────────
@@ -639,6 +983,45 @@ export default function CertificationsPage() {
     await fetchCerts();
   }
 
+  // ── Ready-to-Submit banner data (activity-grouped) ───────────────────────────
+  const rtsActivities = (() => {
+    const map = new Map<string, {
+      activity_id: string;
+      title: string;
+      hours_applied: number;
+      activity_date: string;
+      unsubmittedCerts: { certId: string; certName: string; orgName: string }[];
+    }>();
+    for (const cert of certs) {
+      for (const a of (linkedActivities[cert.id] ?? [])) {
+        if (!a.submitted_to_org) {
+          if (!map.has(a.activity_id)) {
+            map.set(a.activity_id, {
+              activity_id:     a.activity_id,
+              title:           a.title,
+              hours_applied:   a.hours_applied,
+              activity_date:   a.activity_date,
+              unsubmittedCerts: [],
+            });
+          }
+          map.get(a.activity_id)!.unsubmittedCerts.push({
+            certId:   cert.id,
+            certName: cert.name,
+            orgName:  cert.organization,
+          });
+        }
+      }
+    }
+    return Array.from(map.values())
+      .sort((a, b) => b.activity_date.localeCompare(a.activity_date));
+  })();
+
+  // ── Bulk confirm cert name ──────────────────────────────────────────────────
+  const bulkCert = bulkConfirmCertId ? certs.find(c => c.id === bulkConfirmCertId) : null;
+  const bulkUnsubmittedCount = bulkConfirmCertId
+    ? (linkedActivities[bulkConfirmCertId] ?? []).filter(a => !a.submitted_to_org).length
+    : 0;
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const sortedCerts = sortCerts(certs, sortMode);
 
@@ -691,6 +1074,54 @@ export default function CertificationsPage() {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Ready-to-Submit banner */}
+      {!loading && !error && rtsActivities.length > 0 && (
+        <div className="mb-6 border border-amber-300 dark:border-amber-700 rounded-xl overflow-hidden">
+          <button
+            onClick={toggleRts}
+            className="w-full flex items-center justify-between px-4 py-3 bg-amber-50 dark:bg-amber-900/20 text-left"
+          >
+            <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+              📤 Ready to Submit ({rtsActivities.length} {rtsActivities.length === 1 ? "activity" : "activities"})
+            </span>
+            <span className="text-amber-600 dark:text-amber-400 text-xs">
+              {rtsCollapsed ? "▼ Show" : "▲ Hide"}
+            </span>
+          </button>
+          {!rtsCollapsed && (
+            <div className="bg-white dark:bg-gray-800 divide-y divide-gray-100 dark:divide-gray-700">
+              {rtsActivities.map((act) => (
+                <div key={act.activity_id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        {act.title}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                        {formatHrs(act.hours_applied)} hrs • {formatDate(act.activity_date)}
+                      </p>
+                      <div className="mt-1.5 space-y-0.5">
+                        {act.unsubmittedCerts.map(({ certId, certName, orgName }) => (
+                          <p key={certId} className="text-xs text-amber-700 dark:text-amber-400">
+                            → {certName} ({orgName}) • Not Submitted
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                    <Link
+                      href="/cpe-activities"
+                      className="shrink-0 mt-0.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline whitespace-nowrap"
+                    >
+                      View Activity →
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -932,14 +1363,113 @@ export default function CertificationsPage() {
             <CertCard
               key={cert.id}
               cert={cert}
+              activities={linkedActivities[cert.id] ?? []}
               isExpanded={expandedId === cert.id}
               onToggle={() =>
                 setExpandedId(expandedId === cert.id ? null : cert.id)
               }
               onEdit={openEditForm}
               onDelete={handleDelete}
+              onMarkSubmitted={openSubmitModal}
+              onBulkConfirm={setBulkConfirmCertId}
             />
           ))}
+        </div>
+      )}
+
+      {/* Submission modal */}
+      {submitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+              Mark as Submitted
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+              {submitModal.activityTitle} → {submitModal.certName}
+            </p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Submission Date
+                </label>
+                <DateInput
+                  value={submitDate}
+                  hasError={false}
+                  onChange={setSubmitDate}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Notes <span className="text-gray-400 font-normal">(optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={submitNotes}
+                  onChange={e => setSubmitNotes(e.target.value)}
+                  maxLength={500}
+                  placeholder="e.g. Submitted via ISC2 CPE Portal…"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent resize-none"
+                />
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">
+                  {submitNotes.length}/500
+                </p>
+              </div>
+
+              {submitError && (
+                <p role="alert" className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">
+                  {submitError}
+                </p>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={closeSubmitModal}
+                disabled={submitSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleMarkSubmitted}
+                disabled={submitSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 disabled:opacity-60 transition-colors"
+              >
+                {submitSaving ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk confirm overlay */}
+      {bulkConfirmCertId && bulkCert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-2">
+              Mark All as Submitted
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              Mark {bulkUnsubmittedCount} {bulkUnsubmittedCount === 1 ? "activity" : "activities"} for <strong>{bulkCert.name}</strong> as submitted with today&apos;s date?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBulkConfirmCertId(null)}
+                disabled={bulkSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBulkMarkSubmitted(bulkConfirmCertId)}
+                disabled={bulkSaving}
+                className="flex-1 px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 disabled:opacity-60 transition-colors"
+              >
+                {bulkSaving ? "Saving…" : "Confirm"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

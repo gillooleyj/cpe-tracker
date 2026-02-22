@@ -38,6 +38,16 @@ export default function Navbar() {
                   Certifications
                 </Link>
                 <Link
+                  href="/cpe-activities"
+                  className={`text-sm font-medium transition-colors ${
+                    pathname?.startsWith("/cpe-activities")
+                      ? "text-blue-900 dark:text-blue-400"
+                      : "text-gray-600 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400"
+                  }`}
+                >
+                  CPE Activities
+                </Link>
+                <Link
                   href="/account"
                   className={`text-sm font-medium transition-colors ${
                     pathname?.startsWith("/account")

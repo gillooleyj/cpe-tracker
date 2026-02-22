@@ -47,29 +47,35 @@ const HOW_HEARD_OPTIONS = [
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Profile = {
-  first_name:          string;
-  last_name:           string;
-  job_title:           string;
-  organization_type:   string;
-  city:                string;
-  state_province:      string;
-  postal_code:         string;
-  country:             string;
-  how_heard:           string;
-  certification_focus: string;
+  first_name:               string;
+  last_name:                string;
+  job_title:                string;
+  organization_type:        string;
+  city:                     string;
+  state_province:           string;
+  postal_code:              string;
+  country:                  string;
+  how_heard:                string;
+  certification_focus:      string;
+  remind_quarterly_submit:  boolean;
+  remind_20hrs_unsubmitted: boolean;
+  remind_90days_expiry:     boolean;
 };
 
 const EMPTY_PROFILE: Profile = {
-  first_name:          "",
-  last_name:           "",
-  job_title:           "",
-  organization_type:   "",
-  city:                "",
-  state_province:      "",
-  postal_code:         "",
-  country:             "",
-  how_heard:           "",
-  certification_focus: "",
+  first_name:               "",
+  last_name:                "",
+  job_title:                "",
+  organization_type:        "",
+  city:                     "",
+  state_province:           "",
+  postal_code:              "",
+  country:                  "",
+  how_heard:                "",
+  certification_focus:      "",
+  remind_quarterly_submit:  false,
+  remind_20hrs_unsubmitted: true,
+  remind_90days_expiry:     true,
 };
 
 type MfaPanel = null | "regenerate" | "disable";
@@ -140,16 +146,19 @@ export default function AccountPage() {
 
     if (data) {
       setProfile({
-        first_name:          data.first_name          ?? "",
-        last_name:           data.last_name           ?? "",
-        job_title:           data.job_title           ?? "",
-        organization_type:   data.organization_type   ?? "",
-        city:                data.city                ?? "",
-        state_province:      data.state_province      ?? "",
-        postal_code:         data.postal_code         ?? "",
-        country:             data.country             ?? "",
-        how_heard:           data.how_heard           ?? "",
-        certification_focus: data.certification_focus ?? "",
+        first_name:               data.first_name               ?? "",
+        last_name:                data.last_name                ?? "",
+        job_title:                data.job_title                ?? "",
+        organization_type:        data.organization_type        ?? "",
+        city:                     data.city                     ?? "",
+        state_province:           data.state_province           ?? "",
+        postal_code:              data.postal_code              ?? "",
+        country:                  data.country                  ?? "",
+        how_heard:                data.how_heard                ?? "",
+        certification_focus:      data.certification_focus      ?? "",
+        remind_quarterly_submit:  data.remind_quarterly_submit  ?? false,
+        remind_20hrs_unsubmitted: data.remind_20hrs_unsubmitted ?? true,
+        remind_90days_expiry:     data.remind_90days_expiry     ?? true,
       });
     }
     setProfileLoading(false);
@@ -184,6 +193,13 @@ export default function AccountPage() {
     setProfile((p) => ({ ...p, [key]: value }));
   }
 
+  function setPrefBool(
+    key: "remind_quarterly_submit" | "remind_20hrs_unsubmitted" | "remind_90days_expiry",
+    value: boolean
+  ) {
+    setProfile((p) => ({ ...p, [key]: value }));
+  }
+
   // ── Save profile ───────────────────────────────────────────────────────────
   async function handleSaveProfile(e: React.FormEvent) {
     e.preventDefault();
@@ -201,17 +217,20 @@ export default function AccountPage() {
     setProfileSaving(true);
 
     const payload = {
-      user_id:             user!.id,
-      first_name:          profile.first_name.trim(),
-      last_name:           profile.last_name.trim(),
-      job_title:           profile.job_title.trim()           || null,
-      organization_type:   profile.organization_type          || null,
-      city:                profile.city.trim()                || null,
-      state_province:      profile.state_province.trim()      || null,
-      postal_code:         profile.postal_code.trim()         || null,
-      country:             profile.country.trim()             || null,
-      how_heard:           profile.how_heard                  || null,
-      certification_focus: profile.certification_focus.trim() || null,
+      user_id:                  user!.id,
+      first_name:               profile.first_name.trim(),
+      last_name:                profile.last_name.trim(),
+      job_title:                profile.job_title.trim()           || null,
+      organization_type:        profile.organization_type          || null,
+      city:                     profile.city.trim()                || null,
+      state_province:           profile.state_province.trim()      || null,
+      postal_code:              profile.postal_code.trim()         || null,
+      country:                  profile.country.trim()             || null,
+      how_heard:                profile.how_heard                  || null,
+      certification_focus:      profile.certification_focus.trim() || null,
+      remind_quarterly_submit:  profile.remind_quarterly_submit,
+      remind_20hrs_unsubmitted: profile.remind_20hrs_unsubmitted,
+      remind_90days_expiry:     profile.remind_90days_expiry,
     };
 
     const { error } = await supabase
@@ -530,6 +549,99 @@ export default function AccountPage() {
                 className="px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 hover:bg-blue-800 dark:hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {profileSaving ? "Saving…" : "Save Profile"}
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
+
+      {/* ── Notification Preferences section ───────────────────────────────── */}
+      <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-6">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+          Notification Preferences
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          Choose which reminders you&apos;d like to receive about your CPE submissions. (Future email notifications.)
+        </p>
+
+        {profileLoading ? (
+          <div className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500 py-4">
+            <div className="w-4 h-4 border-2 border-gray-300 dark:border-gray-600 border-t-transparent rounded-full animate-spin" />
+            Loading preferences…
+          </div>
+        ) : (
+          <form onSubmit={handleSaveProfile} noValidate className="space-y-4">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={profile.remind_20hrs_unsubmitted}
+                onChange={(e) => setPrefBool("remind_20hrs_unsubmitted", e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-blue-900 dark:accent-blue-400 shrink-0"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  Unsubmitted hours reminder
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Notify me when I have more than 20 hours of unsubmitted CPE activities.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={profile.remind_90days_expiry}
+                onChange={(e) => setPrefBool("remind_90days_expiry", e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-blue-900 dark:accent-blue-400 shrink-0"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  Expiry reminder
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Notify me when a certification expires within 90 days and I have unsubmitted hours.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={profile.remind_quarterly_submit}
+                onChange={(e) => setPrefBool("remind_quarterly_submit", e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded accent-blue-900 dark:accent-blue-400 shrink-0"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  Quarterly submission reminder
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Send me a quarterly reminder to submit my CPE activities to certification bodies.
+                </p>
+              </div>
+            </label>
+
+            {profileSaveMsg && (
+              <p
+                role="status"
+                className={`text-sm ${
+                  profileSaveMsg.type === "success"
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}
+              >
+                {profileSaveMsg.text}
+              </p>
+            )}
+
+            <div className="flex justify-end pt-1">
+              <button
+                type="submit"
+                disabled={profileSaving}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-900 dark:bg-blue-700 hover:bg-blue-800 dark:hover:bg-blue-600 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {profileSaving ? "Saving…" : "Save Preferences"}
               </button>
             </div>
           </form>
