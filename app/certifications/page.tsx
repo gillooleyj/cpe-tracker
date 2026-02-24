@@ -13,10 +13,10 @@ import {
 import { useAuth } from "../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type SortMode = "priority" | "alphabetical";
+type SortBy = "urgency" | "expiration" | "name-asc" | "name-desc";
+type FilterBy = "active" | "all" | "expired";
 
 type SmartStatusResult = {
   label: "Complete" | "On Track" | "Needs Attention" | "Urgent";
@@ -37,15 +37,9 @@ const EMPTY_FORM: CertFormFields = {
   digital_certificate_url: "",
 };
 
-const SORT_PREF_KEY = "cpe-tracker-sort-mode";
+const CERT_SORT_KEY = "certSortPreference";
+const CERT_FILTER_KEY = "certFilterPreference";
 const RTS_KEY = "cpe-tracker-rts-collapsed";
-
-const SMART_PRIORITY: Record<string, number> = {
-  Urgent: 0,
-  "Needs Attention": 1,
-  "On Track": 2,
-  Complete: 3,
-};
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 
@@ -96,22 +90,55 @@ function getSmartStatus(cert: Certification): SmartStatusResult | null {
   return { label: "Needs Attention", emoji: "🟡" };
 }
 
-function sortCerts(certs: Certification[], mode: SortMode): Certification[] {
-  if (mode === "alphabetical") {
-    return [...certs].sort((a, b) =>
-      a.name.toLowerCase().localeCompare(b.name.toLowerCase())
-    );
+function getUrgencyScore(cert: Certification): number {
+  if (getActiveStatus(cert) === "Expired") return 4;
+  const daysLeft = getDaysLeft(cert.expiration_date) ?? Infinity;
+  const cpeEarned = cert.cpe_earned ?? 0;
+  const cpeRequired = cert.cpe_required;
+  if (!cpeRequired || cpeRequired === 0) return 3;
+
+  const progressPct = (cpeEarned / cpeRequired) * 100;
+  if (daysLeft < 90 && progressPct < 50) return 1; // Urgent
+
+  const monthsLeft = Math.max(0.01, daysLeft / 30.44);
+  const paceNeeded = Math.max(0, cpeRequired - cpeEarned) / monthsLeft;
+
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const issueDate = new Date(cert.issue_date + "T00:00:00Z");
+  const monthsElapsed = Math.max(0.01, (now.getTime() - issueDate.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+  const currentPace = cpeEarned / monthsElapsed;
+
+  if (paceNeeded > 0 && (currentPace === 0 || paceNeeded > currentPace * 1.2)) return 2; // Needs Attention
+  return 3; // On Track
+}
+
+function sortCerts(certs: Certification[], mode: SortBy): Certification[] {
+  const copy = [...certs];
+  if (mode === "name-asc") {
+    return copy.sort((a, b) => a.name.localeCompare(b.name));
   }
-  return [...certs].sort((a, b) => {
-    const aExpired = getActiveStatus(a) === "Expired";
-    const bExpired = getActiveStatus(b) === "Expired";
-    if (aExpired !== bExpired) return aExpired ? 1 : -1;
-    if (aExpired && bExpired) {
-      return (b.expiration_date ?? "").localeCompare(a.expiration_date ?? "");
-    }
-    const aP = SMART_PRIORITY[getSmartStatus(a)?.label ?? ""] ?? 4;
-    const bP = SMART_PRIORITY[getSmartStatus(b)?.label ?? ""] ?? 4;
-    if (aP !== bP) return aP - bP;
+  if (mode === "name-desc") {
+    return copy.sort((a, b) => b.name.localeCompare(a.name));
+  }
+  if (mode === "expiration") {
+    return copy.sort((a, b) => {
+      const aExpired = getActiveStatus(a) === "Expired";
+      const bExpired = getActiveStatus(b) === "Expired";
+      // Expired certs always go after active certs
+      if (aExpired !== bExpired) return aExpired ? 1 : -1;
+      if (!a.expiration_date) return 1;
+      if (!b.expiration_date) return -1;
+      // Active: soonest expiration first; Expired: most recently expired first
+      return aExpired
+        ? b.expiration_date.localeCompare(a.expiration_date)
+        : a.expiration_date.localeCompare(b.expiration_date);
+    });
+  }
+  // urgency (default)
+  return copy.sort((a, b) => {
+    const diff = getUrgencyScore(a) - getUrgencyScore(b);
+    if (diff !== 0) return diff;
     const aDays = getDaysLeft(a.expiration_date) ?? Infinity;
     const bDays = getDaysLeft(b.expiration_date) ?? Infinity;
     return aDays - bDays;
@@ -239,7 +266,7 @@ function CertCard({
     "text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500";
 
   return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
+    <div id={`cert-${cert.id}`} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
       {/* Clickable header — expands/collapses the card */}
       <button
         onClick={onToggle}
@@ -624,7 +651,20 @@ export default function CertificationsPage() {
 
   // Card interaction
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [sortMode, setSortMode] = useState<SortMode>("priority");
+  const [sortBy, setSortBy] = useState<SortBy>(() => {
+    if (typeof window === "undefined") return "urgency";
+    const saved = localStorage.getItem(CERT_SORT_KEY);
+    return (["urgency", "expiration", "name-asc", "name-desc"] as SortBy[]).includes(saved as SortBy)
+      ? (saved as SortBy)
+      : "urgency";
+  });
+  const [filterBy, setFilterBy] = useState<FilterBy>(() => {
+    if (typeof window === "undefined") return "all";
+    const saved = localStorage.getItem(CERT_FILTER_KEY);
+    return (["active", "all", "expired"] as FilterBy[]).includes(saved as FilterBy)
+      ? (saved as FilterBy)
+      : "all";
+  });
 
   // Add / edit form
   const [showForm, setShowForm] = useState(false);
@@ -657,11 +697,9 @@ export default function CertificationsPage() {
   const [bulkConfirmCertId, setBulkConfirmCertId] = useState<string | null>(null);
   const [bulkSaving, setBulkSaving] = useState(false);
 
-  // ── Load sort preference from localStorage ──────────────────────────────────
-  useEffect(() => {
-    const saved = localStorage.getItem(SORT_PREF_KEY);
-    if (saved === "alphabetical" || saved === "priority") setSortMode(saved);
-  }, []);
+  // ── Persist sort + filter preferences ───────────────────────────────────────
+  useEffect(() => { localStorage.setItem(CERT_SORT_KEY, sortBy); }, [sortBy]);
+  useEffect(() => { localStorage.setItem(CERT_FILTER_KEY, filterBy); }, [filterBy]);
 
   // ── Input helpers ───────────────────────────────────────────────────────────
   const labelClass =
@@ -779,11 +817,6 @@ export default function CertificationsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  // ── Sort ────────────────────────────────────────────────────────────────────
-  function handleSortChange(mode: SortMode) {
-    setSortMode(mode);
-    localStorage.setItem(SORT_PREF_KEY, mode);
-  }
 
   // ── Submission modal helpers ─────────────────────────────────────────────────
   function openSubmitModal(a: LinkedActivity, certName: string) {
@@ -1023,23 +1056,26 @@ export default function CertificationsPage() {
     : 0;
 
   // ── Render ──────────────────────────────────────────────────────────────────
-  const sortedCerts = sortCerts(certs, sortMode);
+  const filteredCerts = filterBy === "active"
+    ? certs.filter(c => getActiveStatus(c) === "Active")
+    : filterBy === "expired"
+    ? certs.filter(c => getActiveStatus(c) === "Expired")
+    : certs;
+  const sortedCerts = sortCerts(filteredCerts, sortBy);
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page header */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Certifications
-          </h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage your professional certifications and CPE requirements.
-          </p>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 items-start mb-8">
+        {/* Row 1 left: title */}
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 justify-self-start">
+          Certifications
+        </h1>
+
+        {/* Row 1 right: Add Certification button */}
         <button
           onClick={showForm ? closeForm : openAddForm}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 active:bg-blue-700 transition-colors shadow-sm"
+          className="justify-self-end inline-flex items-center gap-2 px-4 py-1.5 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 active:bg-blue-700 transition-colors shadow-sm w-full md:w-auto justify-center"
         >
           {showForm ? (
             <>
@@ -1051,31 +1087,41 @@ export default function CertificationsPage() {
             </>
           )}
         </button>
+
+        {/* Row 2 left: subtitle */}
+        <p className="text-sm text-gray-500 dark:text-gray-400 justify-self-start">
+          Manage your professional certifications and CPE requirements.
+        </p>
+
+        {/* Row 2 right: sort dropdown */}
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortBy)}
+          className="justify-self-end bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px] w-full md:w-auto"
+        >
+          <option value="urgency">Sort by: Urgency</option>
+          <option value="expiration">Sort by: Expiration</option>
+          <option value="name-asc">Sort by: Name (A-Z)</option>
+          <option value="name-desc">Sort by: Name (Z-A)</option>
+        </select>
       </div>
 
-      {/* Sort controls — only shown when there are certs to sort */}
-      {!loading && !error && certs.length > 1 && (
-        <div className="flex items-center gap-2 mb-6">
-          <span className="text-sm text-gray-500 dark:text-gray-400">
-            Sort by:
-          </span>
-          <div className="flex gap-1">
-            {(["priority", "alphabetical"] as SortMode[]).map((mode) => (
-              <button
-                key={mode}
-                onClick={() => handleSortChange(mode)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
-                  sortMode === mode
-                    ? "bg-blue-900 dark:bg-blue-700 text-white"
-                    : "bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
-              >
-                {mode === "priority" ? "Priority" : "Alphabetical"}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Filter buttons */}
+      <div className="flex items-center gap-2 mb-4">
+        {(["active", "all", "expired"] as FilterBy[]).map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilterBy(f)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              filterBy === f
+                ? "bg-blue-600 text-white"
+                : "bg-gray-800 text-gray-400 hover:text-gray-200"
+            }`}
+          >
+            {f === "active" ? "Show Active Only" : f === "expired" ? "Show Expired Only" : "Show All"}
+          </button>
+        ))}
+      </div>
 
       {/* Ready-to-Submit banner */}
       {!loading && !error && rtsActivities.length > 0 && (
@@ -1355,6 +1401,12 @@ export default function CertificationsPage() {
           </h3>
           <p className="text-sm text-gray-400 dark:text-gray-500">
             Click &ldquo;Add Certification&rdquo; to get started.
+          </p>
+        </div>
+      ) : sortedCerts.length === 0 ? (
+        <div className="text-center py-16">
+          <p className="text-sm text-gray-400 dark:text-gray-500">
+            No {filterBy === "active" ? "active" : "expired"} certifications.
           </p>
         </div>
       ) : (

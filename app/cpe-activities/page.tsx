@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import DateInput from "../certifications/DateInput";
+import MonthlyCPEBreakdown from "@/components/MonthlyCPEBreakdown";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -944,6 +945,9 @@ function CpeActivitiesInner() {
           </form>
         </div>
       )}
+
+      {/* Monthly CPE Breakdown widget */}
+      <MonthlyCPEBreakdown />
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       {!loading && activities.length > 0 && (
