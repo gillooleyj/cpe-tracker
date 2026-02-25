@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
+import { ORGANIZATIONS, getOrgInfo } from "@/constants/certifications";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SortBy = "urgency" | "expiration" | "name-asc" | "name-desc";
@@ -20,7 +21,6 @@ type FilterBy = "active" | "all" | "expired";
 
 type SmartStatusResult = {
   label: "Complete" | "On Track" | "Needs Attention" | "Urgent";
-  emoji: string;
 };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ function getSmartStatus(cert: Certification): SmartStatusResult | null {
   const cpeRequired = cert.cpe_required;
   const daysLeft = getDaysLeft(cert.expiration_date) ?? 0;
 
-  if (cpeEarned >= cpeRequired) return { label: "Complete", emoji: "🟢" };
+  if (cpeEarned >= cpeRequired) return { label: "Complete" };
 
   const issueDate = new Date(cert.issue_date + "T00:00:00Z");
   const expDate = new Date(cert.expiration_date + "T00:00:00Z");
@@ -82,12 +82,12 @@ function getSmartStatus(cert: Certification): SmartStatusResult | null {
   const actualProgress = cpeEarned / cpeRequired;
 
   if (daysLeft < 90 && actualProgress < 0.5) {
-    return { label: "Urgent", emoji: "🔴" };
+    return { label: "Urgent" };
   }
   if (actualProgress >= expectedProgress) {
-    return { label: "On Track", emoji: "🟢" };
+    return { label: "On Track" };
   }
-  return { label: "Needs Attention", emoji: "🟡" };
+  return { label: "Needs Attention" };
 }
 
 function getUrgencyScore(cert: Certification): number {
@@ -283,8 +283,21 @@ function CertCard({
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {unsubmittedCount > 0 && !isExpanded && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
                 {unsubmittedCount} to submit
+              </span>
+            )}
+            {smartStatus && (
+              <span
+                className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  smartStatus.label === "Urgent"
+                    ? "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
+                    : smartStatus.label === "Needs Attention"
+                      ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                      : "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                }`}
+              >
+                {smartStatus.label}
               </span>
             )}
             <span
@@ -298,15 +311,10 @@ function CertCard({
             </span>
           </div>
         </div>
-        <div className="flex items-center justify-between mt-1 gap-3">
+        <div className="mt-1">
           <span className="text-sm text-gray-500 dark:text-gray-400 truncate">
             {cert.organization}
           </span>
-          {smartStatus && (
-            <span className="text-xs text-gray-600 dark:text-gray-400 shrink-0">
-              {smartStatus.emoji} {smartStatus.label}
-            </span>
-          )}
         </div>
       </button>
 
@@ -651,20 +659,8 @@ export default function CertificationsPage() {
 
   // Card interaction
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<SortBy>(() => {
-    if (typeof window === "undefined") return "urgency";
-    const saved = localStorage.getItem(CERT_SORT_KEY);
-    return (["urgency", "expiration", "name-asc", "name-desc"] as SortBy[]).includes(saved as SortBy)
-      ? (saved as SortBy)
-      : "urgency";
-  });
-  const [filterBy, setFilterBy] = useState<FilterBy>(() => {
-    if (typeof window === "undefined") return "all";
-    const saved = localStorage.getItem(CERT_FILTER_KEY);
-    return (["active", "all", "expired"] as FilterBy[]).includes(saved as FilterBy)
-      ? (saved as FilterBy)
-      : "all";
-  });
+  const [sortBy, setSortBy] = useState<SortBy>("urgency");
+  const [filterBy, setFilterBy] = useState<FilterBy>("all");
 
   // Add / edit form
   const [showForm, setShowForm] = useState(false);
@@ -698,6 +694,18 @@ export default function CertificationsPage() {
   const [bulkSaving, setBulkSaving] = useState(false);
 
   // ── Persist sort + filter preferences ───────────────────────────────────────
+  useEffect(() => {
+    const saved = localStorage.getItem(CERT_SORT_KEY);
+    if ((["urgency", "expiration", "name-asc", "name-desc"] as SortBy[]).includes(saved as SortBy)) {
+      setSortBy(saved as SortBy);
+    }
+  }, []);
+  useEffect(() => {
+    const saved = localStorage.getItem(CERT_FILTER_KEY);
+    if ((["active", "all", "expired"] as FilterBy[]).includes(saved as FilterBy)) {
+      setFilterBy(saved as FilterBy);
+    }
+  }, []);
   useEffect(() => { localStorage.setItem(CERT_SORT_KEY, sortBy); }, [sortBy]);
   useEffect(() => { localStorage.setItem(CERT_FILTER_KEY, filterBy); }, [filterBy]);
 
@@ -1066,16 +1074,18 @@ export default function CertificationsPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Page header */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 gap-x-4 items-start mb-8">
-        {/* Row 1 left: title */}
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 justify-self-start">
-          Certifications
-        </h1>
-
-        {/* Row 1 right: Add Certification button */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Certifications
+          </h1>
+          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Manage your professional certifications and CPE requirements.
+          </p>
+        </div>
         <button
           onClick={showForm ? closeForm : openAddForm}
-          className="justify-self-end inline-flex items-center gap-2 px-4 py-1.5 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 active:bg-blue-700 transition-colors shadow-sm w-full md:w-auto justify-center"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-900 dark:bg-blue-700 text-white text-sm font-medium rounded-lg hover:bg-blue-800 dark:hover:bg-blue-600 transition-colors shadow-sm"
         >
           {showForm ? (
             <>
@@ -1087,40 +1097,38 @@ export default function CertificationsPage() {
             </>
           )}
         </button>
-
-        {/* Row 2 left: subtitle */}
-        <p className="text-sm text-gray-500 dark:text-gray-400 justify-self-start">
-          Manage your professional certifications and CPE requirements.
-        </p>
-
-        {/* Row 2 right: sort dropdown */}
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as SortBy)}
-          className="justify-self-end bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[200px] w-full md:w-auto"
-        >
-          <option value="urgency">Sort by: Urgency</option>
-          <option value="expiration">Sort by: Expiration</option>
-          <option value="name-asc">Sort by: Name (A-Z)</option>
-          <option value="name-desc">Sort by: Name (Z-A)</option>
-        </select>
       </div>
 
-      {/* Filter buttons */}
-      <div className="flex items-center gap-2 mb-4">
-        {(["active", "all", "expired"] as FilterBy[]).map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilterBy(f)}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-              filterBy === f
-                ? "bg-blue-600 text-white"
-                : "bg-gray-800 text-gray-400 hover:text-gray-200"
-            }`}
+      {/* Sort + filter controls */}
+      <div className="space-y-2 mb-4">
+        <div className="flex items-center gap-2">
+          <label className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Sort:</label>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
           >
-            {f === "active" ? "Show Active Only" : f === "expired" ? "Show Expired Only" : "Show All"}
-          </button>
-        ))}
+            <option value="urgency">Urgency</option>
+            <option value="expiration">Expiration</option>
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+          </select>
+        </div>
+        <div className="flex items-center gap-1">
+          {(["active", "all", "expired"] as FilterBy[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilterBy(f)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                filterBy === f
+                  ? "bg-blue-900 dark:bg-blue-700 text-white"
+                  : "border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+              }`}
+            >
+              {f === "active" ? "Show Active Only" : f === "expired" ? "Show Expired Only" : "Show All"}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Ready-to-Submit banner */}
@@ -1185,6 +1193,37 @@ export default function CertificationsPage() {
             className="space-y-4"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Organization */}
+              <div>
+                <label className={labelClass}>
+                  Organization <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={form.organization}
+                  onChange={(e) => {
+                    const org = e.target.value;
+                    const info = getOrgInfo(org);
+                    setForm((f) => ({
+                      ...f,
+                      organization: org,
+                      organization_url: info?.url ?? "",
+                      name: "",
+                      cpe_required: "",
+                      cpe_cycle_length: info ? String(info.cycleMonths) : "",
+                      annual_minimum_cpe: "",
+                    }));
+                  }}
+                  aria-invalid={!!fieldErrors.organization}
+                  className={inputCls("organization")}
+                >
+                  <option value="">Select an organization…</option>
+                  {ORGANIZATIONS.map((o) => (
+                    <option key={o.name} value={o.name}>{o.name}</option>
+                  ))}
+                </select>
+                <FieldError name="organization" />
+              </div>
+
               {/* Certification name */}
               <div>
                 <label className={labelClass}>
@@ -1193,13 +1232,12 @@ export default function CertificationsPage() {
                 <CertAutocomplete
                   value={form.name}
                   hasError={!!fieldErrors.name}
+                  orgFilter={form.organization || undefined}
                   onChange={(v) => field("name", v)}
                   onSelect={(t) =>
                     setForm((f) => ({
                       ...f,
                       name: t.name,
-                      organization: t.organization,
-                      organization_url: t.organization_url,
                       cpe_required: String(t.cpe_required),
                       cpe_cycle_length: String(t.cpe_cycle_length),
                       annual_minimum_cpe:
@@ -1210,26 +1248,6 @@ export default function CertificationsPage() {
                   }
                 />
                 <FieldError name="name" />
-              </div>
-
-              {/* Organization */}
-              <div>
-                <label className={labelClass}>
-                  Organization <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="search"
-                  name="organization-field"
-                  autoComplete="chrome-off"
-                  data-form-type="other"
-                  data-lpignore="true"
-                  value={form.organization}
-                  onChange={(e) => field("organization", e.target.value)}
-                  placeholder="e.g. ISC2"
-                  aria-invalid={!!fieldErrors.organization}
-                  className={`${inputCls("organization")} [&::-webkit-search-cancel-button]:hidden`}
-                />
-                <FieldError name="organization" />
               </div>
 
               {/* Organization URL */}
@@ -1280,7 +1298,7 @@ export default function CertificationsPage() {
               {/* CPE hours required */}
               <div>
                 <label className={labelClass}>
-                  CPE Hours Required <span className="text-red-500">*</span>
+                  {getOrgInfo(form.organization)?.creditType ?? "CPE"} Hours Required <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1313,7 +1331,9 @@ export default function CertificationsPage() {
 
               {/* Annual minimum CPE */}
               <div>
-                <label className={labelClass}>Annual Minimum CPE</label>
+                <label className={labelClass}>
+                  Annual Minimum {getOrgInfo(form.organization)?.creditType ?? "CPE"}
+                </label>
                 <input
                   type="number"
                   min="0"

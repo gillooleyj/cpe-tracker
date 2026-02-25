@@ -10,7 +10,6 @@ import {
 } from "@/lib/supabase";
 import { useAuth } from "../AuthProvider";
 import DateInput from "../certifications/DateInput";
-import MonthlyCPEBreakdown from "@/components/MonthlyCPEBreakdown";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -568,6 +567,23 @@ function CpeActivitiesInner() {
     setSubmitSaving(false);
   }
 
+  async function handleRecall(junctionId: string) {
+    const res = await fetch(`/api/cert-activity-links/${junctionId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        submitted_to_org: false,
+        submitted_date: null,
+        submission_notes: null,
+      }),
+    });
+    if (!res.ok) {
+      alert("Failed to recall submission. Please try again.");
+    } else {
+      await fetchAll();
+    }
+  }
+
   // ── Filtered list ─────────────────────────────────────────────────────────────
 
   const disabled = disabledCertIds(certSelections, certs);
@@ -946,9 +962,6 @@ function CpeActivitiesInner() {
         </div>
       )}
 
-      {/* Monthly CPE Breakdown widget */}
-      <MonthlyCPEBreakdown />
-
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       {!loading && activities.length > 0 && (
         <div className="space-y-2 mb-4">
@@ -1082,14 +1095,20 @@ function CpeActivitiesInner() {
                         className="flex items-center justify-between gap-2"
                       >
                         <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                          <span className="text-sm shrink-0" title={ca.submitted_to_org ? "Submitted" : "Pending submission"}>
-                            {ca.submitted_to_org ? "✅" : "⏳"}
-                          </span>
                           <span className="text-xs text-blue-900 dark:text-blue-400 truncate">
                             {ca.certifications?.name ?? ca.certification_id}
                           </span>
                           <span className="text-xs text-blue-600 dark:text-blue-500 font-medium shrink-0">
                             · {formatHours(ca.hours_applied)} hrs
+                          </span>
+                          <span
+                            className={`text-xs font-semibold px-2 py-0.5 rounded-full shrink-0 ${
+                              ca.submitted_to_org
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400"
+                                : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                            }`}
+                          >
+                            {ca.submitted_to_org ? "Submitted" : "Not Submitted"}
                           </span>
                           {ca.submitted_to_org && ca.submitted_date && (
                             <span className="text-xs text-green-600 dark:text-green-400 shrink-0">
@@ -1104,18 +1123,27 @@ function CpeActivitiesInner() {
                               className="shrink-0 text-xs text-gray-500 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
                               title={`Submit CPE to ${ca.certifications.organization}`}
                             >
-                              · 🔗 {ca.certifications.organization} portal
+                              · {ca.certifications.organization} portal
                             </a>
                           )}
                         </div>
-                        {!ca.submitted_to_org && (
-                          <button
-                            onClick={() => openSubmitModal(ca, act.activity_date, act.title)}
-                            className="shrink-0 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 border border-amber-300 dark:border-amber-700 rounded px-1.5 py-0.5 transition-colors"
-                          >
-                            Mark Submitted
-                          </button>
-                        )}
+                        <div className="flex items-center gap-2 shrink-0">
+                          {ca.submitted_to_org ? (
+                            <button
+                              onClick={() => handleRecall(ca.id)}
+                              className="shrink-0 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 transition-colors"
+                            >
+                              Recall
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => openSubmitModal(ca, act.activity_date, act.title)}
+                              className="shrink-0 text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded px-1.5 py-0.5 transition-colors"
+                            >
+                              Mark Submitted
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
