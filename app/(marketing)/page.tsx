@@ -32,11 +32,6 @@ export default function Home() {
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 bg-blue-950/50 border border-blue-800/50 text-blue-300 text-xs font-medium px-3 py-1.5 rounded-full mb-8">
-          <span className="w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
-          Built for cybersecurity & IT professionals
-        </div>
-
         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">
           Never let a certification
           <br />

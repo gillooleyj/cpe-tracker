@@ -3,15 +3,30 @@ node_modules/
 
 # next.js
 .next/
+.next-e2e/
+.next */
 out/
 
 # env files (contain secrets)
 .env
 .env.local
 .env.*.local
+.env *.local
+.env.local.save
 
 # typescript
 tsconfig.tsbuildinfo
+tsconfig *.tsbuildinfo
+
+# test & coverage artifacts
+coverage/
+test-results/
+playwright-report/
+e2e/
+
+# duplicate / spaced directories
+public */
+supabase */
 
 # misc
 .DS_Store
