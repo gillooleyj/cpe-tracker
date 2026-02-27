@@ -10,7 +10,7 @@ import {
   type FieldErrors,
   type FieldWarnings,
 } from "@/lib/certValidation";
-import { useAuth } from "../AuthProvider";
+import { useAuth } from "../../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
 import DateInput from "./DateInput";
 import { ORGANIZATIONS, getOrgInfo } from "@/constants/certifications";

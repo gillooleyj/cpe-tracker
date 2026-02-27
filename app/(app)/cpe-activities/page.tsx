@@ -8,7 +8,7 @@ import {
   type ActivityWithCerts,
   type ActivityCertLink,
 } from "@/lib/supabase";
-import { useAuth } from "../AuthProvider";
+import { useAuth } from "../../AuthProvider";
 import DateInput from "../certifications/DateInput";
 
 // ── Types ─────────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "../AuthProvider";
+import { useAuth } from "../../AuthProvider";
 import { supabase } from "@/lib/supabase";
 
 // ── Static option lists ───────────────────────────────────────────────────────
