@@ -69,6 +69,9 @@ export async function PATCH(
       if (isNaN(subDate.getTime())) {
         return NextResponse.json({ error: "Invalid submission date." }, { status: 400 });
       }
+      if (subDate < new Date("1970-01-01T00:00:00Z")) {
+        return NextResponse.json({ error: "Invalid submission date." }, { status: 400 });
+      }
       if (subDate < actDate) {
         return NextResponse.json({ error: "Submission date cannot be before the activity date." }, { status: 400 });
       }

@@ -59,6 +59,9 @@ function validateActivity(body: ActivityBody): Record<string, string> {
       if (isNaN(h) || h <= 0) {
         errors.certifications = "Hours applied must be greater than 0 for each certification.";
         break;
+      } else if (h > 500) {
+        errors.certifications = "Hours applied cannot exceed 500 for each certification.";
+        break;
       }
     }
   }
@@ -67,10 +70,14 @@ function validateActivity(body: ActivityBody): Record<string, string> {
 }
 
 // ── Shared: recalculate cpe_earned for a list of certification IDs ─────────────
+// Note: this is a read-then-write recalc. Concurrent requests on the same cert
+// could produce a stale total; a proper fix requires a DB-level trigger or RPC.
+// In practice this is safe for single-user low-concurrency access.
 
 export async function recalcCpeEarned(
   supabase: SupabaseClient,
-  certIds: string[]
+  certIds: string[],
+  userId: string
 ) {
   for (const certId of certIds) {
     const { data } = await supabase
@@ -84,7 +91,8 @@ export async function recalcCpeEarned(
     await supabase
       .from("certifications")
       .update({ cpe_earned: total })
-      .eq("id", certId);
+      .eq("id", certId)
+      .eq("user_id", userId);
   }
 }
 
@@ -159,10 +167,7 @@ export async function POST(request: Request) {
 
     const ownedIds = new Set((ownedCerts ?? []).map((c: { id: string }) => c.id));
     if (!certIds.every((id) => ownedIds.has(id))) {
-      return NextResponse.json(
-        { error: "One or more certifications not found." },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
     // Insert junction records
@@ -180,7 +185,7 @@ export async function POST(request: Request) {
     }
 
     // Recalculate cpe_earned for affected certs
-    await recalcCpeEarned(supabase, body.certifications.map((c) => c.id));
+    await recalcCpeEarned(supabase, body.certifications.map((c) => c.id), user.id);
 
     return NextResponse.json(activity, { status: 201 });
   } catch (err) {

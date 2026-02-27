@@ -245,6 +245,22 @@ describe("POST /api/cpe-activities", () => {
     expect((res.body as any).errors.certifications).toMatch(/Hours applied/);
   });
 
+  it("returns 400 when a cert has hours_applied exceeding 500", async () => {
+    const userId = crypto.randomUUID();
+    mockSupabase.auth = {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: userId } },
+        error: null,
+      }),
+    };
+    createServerClient.mockReturnValue(mockSupabase);
+
+    const body = { ...validBody, certifications: [{ id: "cert-1", hours_applied: 501 }] };
+    const res = await POST(makeRequest(body));
+    expect(res.status).toBe(400);
+    expect((res.body as any).errors.certifications).toMatch(/cannot exceed 500/);
+  });
+
   it("returns 500 when activity insert fails", async () => {
     const userId = crypto.randomUUID();
     mockSupabase.auth = {
@@ -326,7 +342,7 @@ describe("POST /api/cpe-activities", () => {
 
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(403);
-    expect((res.body as any).error).toMatch(/not found/);
+    expect((res.body as any).error).toMatch(/Forbidden/);
   });
 
   it("returns 201 on success with activity data", async () => {

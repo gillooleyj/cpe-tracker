@@ -54,6 +54,9 @@ function validateActivity(body: ActivityBody): Record<string, string> {
       if (isNaN(h) || h <= 0) {
         errors.certifications = "Hours applied must be greater than 0 for each certification.";
         break;
+      } else if (h > 500) {
+        errors.certifications = "Hours applied cannot exceed 500 for each certification.";
+        break;
       }
     }
   }
@@ -137,6 +140,23 @@ export async function PUT(
       return NextResponse.json({ error: "Failed to update activity." }, { status: 500 });
     }
 
+    // Verify all certification IDs belong to the authenticated user
+    const newCertIds = body.certifications.map((c) => c.id);
+    const { data: ownedCerts, error: certCheckError } = await supabase
+      .from("certifications")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("id", newCertIds);
+
+    if (certCheckError) {
+      return NextResponse.json({ error: "Failed to verify certifications." }, { status: 500 });
+    }
+
+    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: string }) => c.id));
+    if (!newCertIds.every((cid) => ownedIds.has(cid))) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
     // Replace junction records
     await supabase
       .from("certification_activities")
@@ -158,9 +178,9 @@ export async function PUT(
 
     // Recalc all affected certs (old + new)
     const allCertIds = Array.from(
-      new Set([...oldCertIds, ...body.certifications.map((c) => c.id)])
+      new Set([...oldCertIds, ...newCertIds])
     );
-    await recalcCpeEarned(supabase, allCertIds);
+    await recalcCpeEarned(supabase, allCertIds, user.id);
 
     return NextResponse.json(activity);
   } catch (err) {
@@ -223,7 +243,7 @@ export async function DELETE(
     }
 
     // Recalculate cpe_earned on previously linked certs
-    await recalcCpeEarned(supabase, certIds);
+    await recalcCpeEarned(supabase, certIds, user.id);
 
     return NextResponse.json({ success: true });
   } catch (err) {
