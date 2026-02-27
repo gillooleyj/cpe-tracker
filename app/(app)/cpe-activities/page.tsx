@@ -748,7 +748,7 @@ function CpeActivitiesInner() {
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
                   Select the category that best matches this activity
                 </p>
               </div>
@@ -817,7 +817,7 @@ function CpeActivitiesInner() {
                     click to select
                   </span>
                 </p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">
                   PDF, JPG, PNG, GIF • Max 5 MB each
                 </p>
               </div>
@@ -832,7 +832,7 @@ function CpeActivitiesInner() {
                     >
                       <span className="text-xs text-gray-700 dark:text-gray-300 truncate">
                         📄 {f.name}{" "}
-                        <span className="text-gray-400">
+                        <span className="text-gray-600 dark:text-gray-400">
                           ({(f.size / 1024).toFixed(0)} KB)
                         </span>
                       </span>
@@ -856,7 +856,7 @@ function CpeActivitiesInner() {
               </label>
 
               {certs.length === 0 ? (
-                <p className="text-sm text-gray-400 dark:text-gray-500">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
                   No certifications found.{" "}
                   <a href="/certifications" className="text-blue-900 dark:text-blue-400 hover:underline">
                     Add one first.
@@ -1013,7 +1013,7 @@ function CpeActivitiesInner() {
 
       {/* ── Content area ────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-gray-400 dark:text-gray-500 text-sm">
+        <div className="flex items-center justify-center py-24 text-gray-600 dark:text-gray-400 text-sm">
           Loading activities…
         </div>
       ) : pageError ? (
@@ -1026,13 +1026,13 @@ function CpeActivitiesInner() {
           <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">
             No activities logged yet
           </h3>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Click &ldquo;Log Activity&rdquo; to record your first CPE activity.
           </p>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             No activities match the current filter.
           </p>
         </div>
@@ -1062,7 +1062,7 @@ function CpeActivitiesInner() {
                   <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {formatHours(act.total_hours)} hrs
                   </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">
                     {formatDate(act.activity_date)}
                   </p>
                 </div>
@@ -1085,7 +1085,7 @@ function CpeActivitiesInner() {
               {/* Applied-to certs with submission status */}
               {act.certification_activities.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-1.5">
                     Applied to
                   </p>
                   <div className="space-y-1.5">
@@ -1131,7 +1131,7 @@ function CpeActivitiesInner() {
                           {ca.submitted_to_org ? (
                             <button
                               onClick={() => handleRecall(ca.id)}
-                              className="shrink-0 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 transition-colors"
+                              className="shrink-0 text-xs text-gray-600 dark:text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-1.5 py-0.5 transition-colors"
                             >
                               Recall
                             </button>
@@ -1153,7 +1153,7 @@ function CpeActivitiesInner() {
               {/* Attachments */}
               {act.attachment_urls.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-1.5">
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 mb-1.5">
                     Attachments
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1208,7 +1208,7 @@ function CpeActivitiesInner() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Notes <span className="text-gray-400 font-normal">(optional)</span>
+                  Notes <span className="text-gray-600 dark:text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
                   rows={3}
@@ -1218,7 +1218,7 @@ function CpeActivitiesInner() {
                   placeholder="e.g. Submitted via ISC2 CPE Portal…"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent resize-none"
                 />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-right">
                   {submitNotes.length}/500
                 </p>
               </div>
@@ -1259,7 +1259,7 @@ export default function CpeActivitiesPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex items-center justify-center py-24 text-gray-400 dark:text-gray-500 text-sm">
+        <div className="flex items-center justify-center py-24 text-gray-600 dark:text-gray-400 text-sm">
           Loading…
         </div>
       }

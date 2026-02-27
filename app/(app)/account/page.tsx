@@ -397,7 +397,7 @@ export default function AccountPage() {
             </div>
 
             <hr className="border-gray-100 dark:border-gray-700" />
-            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">
               Optional Details
             </p>
 

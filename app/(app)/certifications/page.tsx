@@ -263,7 +263,7 @@ function CertCard({
     : null;
 
   const lbl =
-    "text-[10px] font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500";
+    "text-[10px] font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400";
 
   return (
     <div id={`cert-${cert.id}`} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm overflow-hidden">
@@ -277,7 +277,7 @@ function CertCard({
             <span className="font-semibold text-gray-900 dark:text-gray-100 text-sm truncate">
               {cert.name}
             </span>
-            <span className="text-gray-400 dark:text-gray-500 text-[11px] shrink-0 select-none">
+            <span className="text-gray-600 dark:text-gray-400 text-[11px] shrink-0 select-none">
               {isExpanded ? "▲" : "▼"}
             </span>
           </div>
@@ -343,7 +343,7 @@ function CertCard({
               )}
             </>
           ) : (
-            <span className="text-gray-400 dark:text-gray-500">No expiration date</span>
+            <span className="text-gray-600 dark:text-gray-400">No expiration date</span>
           )}
         </p>
 
@@ -365,7 +365,7 @@ function CertCard({
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
               {overallPercent}%{" "}
-              <span className="text-gray-400 dark:text-gray-500">
+              <span className="text-gray-600 dark:text-gray-400">
                 ({cpeEarned} of {cert.cpe_required} hrs)
               </span>
             </p>
@@ -478,7 +478,7 @@ function CertCard({
 
             {activities.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
-                <p className="text-xs text-gray-400 dark:text-gray-500">
+                <p className="text-xs text-gray-600 dark:text-gray-400">
                   No CPE activities logged yet.
                 </p>
                 <Link
@@ -1099,8 +1099,9 @@ export default function CertificationsPage() {
       {/* Sort + filter controls */}
       <div className="space-y-2 mb-4">
         <div className="flex items-center gap-2">
-          <label className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Sort:</label>
+          <label htmlFor="cert-sort" className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Sort:</label>
           <select
+            id="cert-sort"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortBy)}
             className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
@@ -1403,7 +1404,7 @@ export default function CertificationsPage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-24 text-gray-400 dark:text-gray-500 text-sm">
+        <div className="flex items-center justify-center py-24 text-gray-600 dark:text-gray-400 text-sm">
           Loading certifications…
         </div>
       ) : error ? (
@@ -1416,13 +1417,13 @@ export default function CertificationsPage() {
           <h3 className="text-base font-semibold text-gray-700 dark:text-gray-300 mb-1">
             No certifications yet
           </h3>
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Click &ldquo;Add Certification&rdquo; to get started.
           </p>
         </div>
       ) : sortedCerts.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             No {filterBy === "active" ? "active" : "expired"} certifications.
           </p>
         </div>
@@ -1470,7 +1471,7 @@ export default function CertificationsPage() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Notes <span className="text-gray-400 font-normal">(optional)</span>
+                  Notes <span className="text-gray-600 dark:text-gray-400 font-normal">(optional)</span>
                 </label>
                 <textarea
                   rows={3}
@@ -1480,7 +1481,7 @@ export default function CertificationsPage() {
                   placeholder="e.g. Submitted via ISC2 CPE Portal…"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent resize-none"
                 />
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 text-right">
+                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-right">
                   {submitNotes.length}/500
                 </p>
               </div>

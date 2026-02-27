@@ -28,7 +28,7 @@ export default function Navbar() {
                 <path d="M10 14L13 17L18 11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
               <span className="text-lg font-bold tracking-tight">
-                <span className="text-gray-900 dark:text-white">Cred</span><span className="text-blue-400">Vault</span>
+                <span className="text-gray-900 dark:text-white">Cred</span><span className="text-blue-600 dark:text-blue-400">Vault</span>
               </span>
             </div>
             {user && (

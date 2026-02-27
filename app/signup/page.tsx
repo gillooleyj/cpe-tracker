@@ -182,7 +182,7 @@ export default function SignupPage() {
               placeholder="••••••••"
               className={inputClass}
             />
-            <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
               Minimum 8 characters
             </p>
           </div>
