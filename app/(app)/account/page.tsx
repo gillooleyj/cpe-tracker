@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../../AuthProvider";
 import { supabase } from "@/lib/supabase";
+import bcrypt from "bcryptjs";
 
 // ── Static option lists ───────────────────────────────────────────────────────
 
@@ -84,13 +85,7 @@ type MfaPanel = null | "regenerate" | "disable";
 
 async function hashCode(code: string): Promise<string> {
   const clean = code.replace("-", "").toUpperCase();
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(clean)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return bcrypt.hash(clean, 10);
 }
 
 function generateBackupCodes(): string[] {

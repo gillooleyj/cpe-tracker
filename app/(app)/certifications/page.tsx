@@ -1012,11 +1012,8 @@ export default function CertificationsPage() {
   async function handleDelete(certId: string) {
     if (!window.confirm("Delete this certification? This cannot be undone."))
       return;
-    const { error: delError } = await supabase
-      .from("certifications")
-      .delete()
-      .eq("id", certId);
-    if (delError) {
+    const res = await fetch(`/api/certifications/${certId}`, { method: "DELETE" });
+    if (!res.ok) {
       alert("Failed to delete certification. Please try again.");
       return;
     }

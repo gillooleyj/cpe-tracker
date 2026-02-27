@@ -145,6 +145,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save activity." }, { status: 500 });
     }
 
+    // Verify all certification IDs belong to the authenticated user
+    const certIds = body.certifications.map((c) => c.id);
+    const { data: ownedCerts, error: certCheckError } = await supabase
+      .from("certifications")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("id", certIds);
+
+    if (certCheckError) {
+      return NextResponse.json({ error: "Failed to verify certifications." }, { status: 500 });
+    }
+
+    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: string }) => c.id));
+    if (!certIds.every((id) => ownedIds.has(id))) {
+      return NextResponse.json(
+        { error: "One or more certifications not found." },
+        { status: 403 }
+      );
+    }
+
     // Insert junction records
     const { error: junctionError } = await supabase
       .from("certification_activities")

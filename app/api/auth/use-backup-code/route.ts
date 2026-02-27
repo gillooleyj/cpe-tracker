@@ -2,16 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import bcrypt from "bcryptjs";
 
-async function sha256(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(text)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-}
+// ── Rate limiter: 5 attempts per 15 minutes per user ─────────────────────────
+const rateMap = new Map<string, { count: number; windowStart: number }>();
+const RATE_LIMIT = 5;
+const WINDOW_MS = 15 * 60 * 1000;
 
 export async function POST(request: Request) {
   try {
@@ -48,25 +44,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
 
-    // ── Hash the provided code ───────────────────────────────────────────────
-    const normalized = code.replace("-", "").toUpperCase();
-    const codeHash = await sha256(normalized);
+    // ── Rate limit ───────────────────────────────────────────────────────────
+    const now = Date.now();
+    const entry = rateMap.get(user.id);
+    if (entry && now - entry.windowStart < WINDOW_MS) {
+      if (entry.count >= RATE_LIMIT) {
+        return NextResponse.json(
+          { error: "Too many attempts. Please try again later." },
+          { status: 429 }
+        );
+      }
+      entry.count++;
+    } else {
+      rateMap.set(user.id, { count: 1, windowStart: now });
+    }
 
-    // ── Look up the backup code ──────────────────────────────────────────────
+    // ── Normalize and compare against all unused codes via bcrypt ────────────
+    const normalized = code.replace("-", "").toUpperCase();
+
     const { data: rows, error: lookupError } = await supabase
       .from("backup_codes")
-      .select("id")
+      .select("id, code_hash")
       .eq("user_id", user.id)
       .eq("factor_id", factorId)
-      .eq("code_hash", codeHash)
-      .is("used_at", null)
-      .limit(1);
+      .is("used_at", null);
 
     if (lookupError) {
       return NextResponse.json({ error: "Database error." }, { status: 500 });
     }
 
-    if (!rows || rows.length === 0) {
+    let matchedRow: { id: string } | null = null;
+    for (const row of rows ?? []) {
+      if (await bcrypt.compare(normalized, row.code_hash)) {
+        matchedRow = row;
+        break;
+      }
+    }
+
+    if (!matchedRow) {
       return NextResponse.json(
         { error: "Invalid or already-used backup code." },
         { status: 400 }
@@ -77,7 +92,7 @@ export async function POST(request: Request) {
     const { error: updateError } = await supabase
       .from("backup_codes")
       .update({ used_at: new Date().toISOString() })
-      .eq("id", rows[0].id);
+      .eq("id", matchedRow.id);
 
     if (updateError) {
       return NextResponse.json({ error: "Failed to mark code as used." }, { status: 500 });

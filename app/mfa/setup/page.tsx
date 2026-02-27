@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
+import bcrypt from "bcryptjs";
 
 // ── Backup code helpers ──────────────────────────────────────────────────────
 
@@ -20,13 +21,7 @@ function generateBackupCodes(): string[] {
 
 async function hashCode(code: string): Promise<string> {
   const clean = code.replace("-", "").toUpperCase();
-  const buf = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(clean)
-  );
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return bcrypt.hash(clean, 10);
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
