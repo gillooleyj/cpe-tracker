@@ -7,29 +7,6 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-950 text-gray-100">
 
-      {/* Nav */}
-      <nav className="border-b border-gray-800 bg-gray-950/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 2L4 7V14C4 19.5 8.5 24.7 14 26C19.5 24.7 24 19.5 24 14V7L14 2Z" fill="#1e40af" stroke="#3b82f6" strokeWidth="1.5"/>
-              <path d="M10 14L13 17L18 11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-            <span className="text-lg font-bold tracking-tight">
-              <span className="text-white">Cred</span><span className="text-blue-400">Vault</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/login" className="text-sm text-gray-400 hover:text-white transition-colors px-3 py-1.5">
-              Sign In
-            </Link>
-            <Link href="/signup" className="text-sm font-medium bg-blue-600 hover:bg-blue-500 text-white px-4 py-1.5 rounded-lg transition-colors">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-16 text-center">
         <h1 className="text-5xl sm:text-6xl font-bold tracking-tight text-white mb-6 leading-tight">

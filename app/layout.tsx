@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import ThemeProvider from "./ThemeProvider";
+import Navbar from "./Navbar";
 import AuthProvider from "./AuthProvider";
 import SessionTimeoutManager from "./SessionTimeoutManager";
 
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
         <AuthProvider>
           <ThemeProvider>
+            <Navbar />
             {children}
             <SessionTimeoutManager />
           </ThemeProvider>
