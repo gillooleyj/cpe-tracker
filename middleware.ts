@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
+const PUBLIC_ROUTES = ["/"];
 const MFA_VERIFY_ROUTE = "/mfa";
 const MFA_SETUP_ROUTE = "/mfa/setup";
 
@@ -39,7 +40,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Unauthenticated ──────────────────────────────────────────────────────────
   if (!user) {
-    if (AUTH_ROUTES.includes(pathname)) return response;
+    if (AUTH_ROUTES.includes(pathname) || PUBLIC_ROUTES.includes(pathname)) return response;
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
