@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
@@ -33,7 +33,7 @@ async function hashCode(code: string): Promise<string> {
 
 type Screen = "enroll" | "backup-codes";
 
-export default function MFASetupPage() {
+function MFASetupInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const fromBackupCode = searchParams.get("from") === "backup-code";
@@ -378,5 +378,13 @@ export default function MFASetupPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function MFASetupPage() {
+  return (
+    <Suspense>
+      <MFASetupInner />
+    </Suspense>
   );
 }
