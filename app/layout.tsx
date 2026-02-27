@@ -6,8 +6,8 @@ import AuthProvider from "./AuthProvider";
 import SessionTimeoutManager from "./SessionTimeoutManager";
 
 export const metadata: Metadata = {
-  title: "CPE Tracker",
-  description: "Track your continuing professional education credits",
+  title: "CredVault",
+  description: "Track your professional certifications, CPD progress, and renewal deadlines — all in one place.",
 };
 
 export default function RootLayout({
