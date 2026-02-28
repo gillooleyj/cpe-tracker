@@ -13,14 +13,16 @@ export async function middleware(request: NextRequest) {
   // ── Beta access gate ──────────────────────────────────────────────────────
   // Remove SITE_PASSWORD from env to disable this gate after user testing.
   const SITE_PASSWORD = process.env.SITE_PASSWORD;
+  if (pathname.startsWith("/beta-access")) {
+    // Always allow the gate page through — no auth checks — to avoid redirect loops.
+    return NextResponse.next({ request });
+  }
   if (SITE_PASSWORD) {
-    if (!pathname.startsWith("/beta-access")) {
-      const cookie = request.cookies.get("site_access")?.value;
-      if (cookie !== SITE_PASSWORD) {
-        const url = new URL("/beta-access", request.url);
-        url.searchParams.set("redirect", pathname);
-        return NextResponse.redirect(url);
-      }
+    const cookie = request.cookies.get("site_access")?.value;
+    if (cookie !== SITE_PASSWORD) {
+      const url = new URL("/beta-access", request.url);
+      url.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(url);
     }
   }
   // ─────────────────────────────────────────────────────────────────────────
