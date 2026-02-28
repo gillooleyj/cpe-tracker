@@ -8,6 +8,23 @@ const MFA_VERIFY_ROUTE = "/mfa";
 const MFA_SETUP_ROUTE = "/mfa/setup";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ── Beta access gate ──────────────────────────────────────────────────────
+  // Remove SITE_PASSWORD from env to disable this gate after user testing.
+  const SITE_PASSWORD = process.env.SITE_PASSWORD;
+  if (SITE_PASSWORD) {
+    if (!pathname.startsWith("/beta-access")) {
+      const cookie = request.cookies.get("site_access")?.value;
+      if (cookie !== SITE_PASSWORD) {
+        const url = new URL("/beta-access", request.url);
+        url.searchParams.set("redirect", pathname);
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -30,8 +47,6 @@ export async function middleware(request: NextRequest) {
       },
     }
   );
-
-  const { pathname } = request.nextUrl;
 
   // Refresh session on every request
   const {
