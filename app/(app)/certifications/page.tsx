@@ -372,15 +372,6 @@ function CertCard({
           </div>
         )}
 
-        {/* Annual minimum */}
-        {cert.annual_minimum_cpe != null && (
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            <span className="font-medium text-gray-600 dark:text-gray-400">
-              Annual Minimum:
-            </span>{" "}
-            0 of {cert.annual_minimum_cpe} hrs
-          </p>
-        )}
       </div>
 
       {/* Expandable section — slides open/closed */}
@@ -390,22 +381,6 @@ function CertCard({
         }`}
       >
         <div className="border-t border-gray-100 dark:border-gray-700 px-5 py-4 space-y-4">
-          {/* Overall progress */}
-          {cert.cpe_required != null && (
-            <div>
-              <p className={`${lbl} mb-2`}>Overall Progress</p>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
-                <div
-                  className="bg-blue-900 dark:bg-blue-500 h-1.5 rounded-full"
-                  style={{ width: `${overallPercent}%` }}
-                />
-              </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {overallPercent}% complete ({cpeEarned}/{cert.cpe_required} hrs)
-              </p>
-            </div>
-          )}
-
           {/* Annual progress — from logged activities in the current calendar year */}
           {cert.annual_minimum_cpe != null && (
             <div>
