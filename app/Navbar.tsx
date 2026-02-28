@@ -39,7 +39,7 @@ export default function Navbar() {
 
           {/* Left: logo + desktop nav links */}
           <div className="flex items-center gap-8">
-            <div className="flex items-center gap-2">
+            <Link href="/" className="flex items-center gap-2">
               <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M14 2L4 7V14C4 19.5 8.5 24.7 14 26C19.5 24.7 24 19.5 24 14V7L14 2Z" fill="#1e40af" stroke="#3b82f6" strokeWidth="1.5"/>
                 <path d="M10 14L13 17L18 11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -47,7 +47,7 @@ export default function Navbar() {
               <span className="text-lg font-bold tracking-tight">
                 <span className="text-gray-900 dark:text-white">Cred</span><span className="text-blue-600 dark:text-blue-400">Vault</span>
               </span>
-            </div>
+            </Link>
 
             {/* Desktop nav links — hidden on mobile */}
             {user && (
