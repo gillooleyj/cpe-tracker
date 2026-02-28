@@ -28,7 +28,7 @@ export default function RootLayout({
               </div>
               <footer className="border-t border-gray-200 dark:border-gray-700 py-6 px-4 mt-auto">
                 <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <p>© {new Date().getFullYear()} CredVault. All rights reserved.</p>
+                  <p>© {new Date().getFullYear()} CredVault by Cooey Tools. All rights reserved.</p>
                   <nav className="flex gap-4">
                     <Link href="/privacy" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Privacy Policy</Link>
                     <Link href="/terms" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Terms of Service</Link>
