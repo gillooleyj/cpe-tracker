@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "./ThemeProvider";
 import { useAuth } from "./AuthProvider";
 import { supabase } from "@/lib/supabase";
@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabase";
 export default function Navbar() {
   const { theme, toggle } = useTheme();
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -21,7 +20,9 @@ export default function Navbar() {
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/login");
+    // Use a full navigation (not router.push) to bust the Next.js router cache
+    // so middleware re-evaluates with the cleared session cookie.
+    window.location.href = "/";
   }
 
   function linkClass(href: string) {
