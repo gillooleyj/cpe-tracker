@@ -188,7 +188,7 @@ export async function POST(request: Request) {
       );
     if (junctionError) {
       console.error("Junction insert error:", junctionError);
-      return NextResponse.json({ error: "Failed to link certifications." }, { status: 500 });
+      return NextResponse.json({ error: "Failed to link certifications.", _debug: junctionError.message }, { status: 500 });
     }
 
     // Recalculate cpe_earned for affected certs
