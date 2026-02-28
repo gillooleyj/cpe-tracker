@@ -168,7 +168,7 @@ export default function MonthlyCPEBreakdown() {
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
           <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">
-            Monthly CPE Breakdown
+            Monthly CPD Breakdown
           </span>
         </div>
         {collapsed ? (
@@ -183,7 +183,7 @@ export default function MonthlyCPEBreakdown() {
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-px bg-gray-100 dark:bg-gray-700 border-b border-gray-100 dark:border-gray-700">
             {[
-              { label: "Total CPE", value: `${formatHrs(totalCPE)} hrs` },
+              { label: "Total CPD", value: `${formatHrs(totalCPE)} hrs` },
               { label: "Avg / Month", value: `${formatHrs(avgPerMonth)} hrs` },
               { label: "Active Months", value: String(activeMonths) },
             ].map(({ label, value }) => (
@@ -205,7 +205,7 @@ export default function MonthlyCPEBreakdown() {
           {!hasThisMonth && (
             <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-300">
               <Calendar className="w-3.5 h-3.5 shrink-0" />
-              No CPE logged this month yet.
+              No CPD logged this month yet.
             </div>
           )}
 

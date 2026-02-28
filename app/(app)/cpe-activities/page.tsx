@@ -637,10 +637,10 @@ function CpeActivitiesInner() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            CPE Activities
+            CPD Activities
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Log and track your continuing professional education activities.
+            Log and track your continuing professional development activities.
           </p>
         </div>
         <button
@@ -1027,7 +1027,7 @@ function CpeActivitiesInner() {
             No activities logged yet
           </h3>
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Click &ldquo;Log Activity&rdquo; to record your first CPE activity.
+            Click &ldquo;Log Activity&rdquo; to record your first CPD activity.
           </p>
         </div>
       ) : filtered.length === 0 ? (
@@ -1121,7 +1121,7 @@ function CpeActivitiesInner() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="shrink-0 text-xs text-gray-500 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
-                              title={`Submit CPE to ${ca.certifications.organization}`}
+                              title={`Submit CPD to ${ca.certifications.organization}`}
                             >
                               · {ca.certifications.organization} portal
                             </a>
@@ -1215,7 +1215,7 @@ function CpeActivitiesInner() {
                   value={submitNotes}
                   onChange={e => setSubmitNotes(e.target.value)}
                   maxLength={500}
-                  placeholder="e.g. Submitted via ISC2 CPE Portal…"
+                  placeholder="e.g. Submitted via ISC2 CPD Portal…"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent resize-none"
                 />
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-right">

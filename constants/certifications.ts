@@ -1,6 +1,6 @@
 // ── Types ──────────────────────────────────────────────────────────────────────
 
-export type CreditType = "CPE" | "CEU" | "PDU" | "PDC" | "RCH" | "ECE" | "CE";
+export type CreditType = "CPD" | "CEU" | "PDU" | "PDC" | "RCH" | "ECE" | "CE";
 
 export type OrgInfo = {
   name: string;
@@ -22,9 +22,9 @@ export type CertTemplate = {
 // ── Organizations ──────────────────────────────────────────────────────────────
 
 export const ORGANIZATIONS: OrgInfo[] = [
-  { name: "ISC2",       url: "https://www.isc2.org",                                                       creditType: "CPE", cycleMonths: 36 },
-  { name: "ISACA",      url: "https://www.isaca.org",                                                      creditType: "CPE", cycleMonths: 36 },
-  { name: "GIAC",       url: "https://www.giac.org",                                                       creditType: "CPE", cycleMonths: 48 },
+  { name: "ISC2",       url: "https://www.isc2.org",                                                       creditType: "CPD", cycleMonths: 36 },
+  { name: "ISACA",      url: "https://www.isaca.org",                                                      creditType: "CPD", cycleMonths: 36 },
+  { name: "GIAC",       url: "https://www.giac.org",                                                       creditType: "CPD", cycleMonths: 48 },
   { name: "EC-Council", url: "https://www.eccouncil.org",                                                  creditType: "ECE", cycleMonths: 36 },
   { name: "CompTIA",    url: "https://www.comptia.org",                                                    creditType: "CEU", cycleMonths: 36 },
   { name: "PMI",        url: "https://www.pmi.org",                                                        creditType: "PDU", cycleMonths: 36 },
@@ -56,7 +56,7 @@ const [ISC2, ISACA, GIAC, EC_COUNCIL, COMPTIA, PMI, SHRM, HRCI, CISCO] =
 // ── Certification templates ────────────────────────────────────────────────────
 
 export const CERT_TEMPLATES: CertTemplate[] = [
-  // ISC2 — 3-year / CPE
+  // ISC2 — 3-year / CPD
   ...makeCerts(ISC2, [
     ["CC",    45,  15],
     ["SSCP",  60,  20],
@@ -69,7 +69,7 @@ export const CERT_TEMPLATES: CertTemplate[] = [
     ["ISSMP", 120, 40],
   ]),
 
-  // ISACA — 3-year / CPE
+  // ISACA — 3-year / CPD
   ...makeCerts(ISACA, [
     ["CISA",  120, 20],
     ["CISM",  120, 20],
@@ -79,7 +79,7 @@ export const CERT_TEMPLATES: CertTemplate[] = [
     ["CCOA",  120, 20],
   ]),
 
-  // GIAC — 4-year / CPE, no annual minimum
+  // GIAC — 4-year / CPD, no annual minimum
   ...makeCerts(GIAC, [
     ["GSEC",  36, null],
     ["GCIH",  36, null],

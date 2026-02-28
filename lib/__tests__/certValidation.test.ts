@@ -267,7 +267,7 @@ describe("validateCertForm", () => {
   describe("cpe_required field", () => {
     it("errors when cpe_required is empty", () => {
       const result = validateCertForm(makeFields({ cpe_required: "" }));
-      expect(result.errors.cpe_required).toBe("CPE hours required is required.");
+      expect(result.errors.cpe_required).toBe("CPD hours required is required.");
     });
 
     it("errors for zero", () => {
@@ -287,7 +287,7 @@ describe("validateCertForm", () => {
 
     it("errors when exceeds 500", () => {
       const result = validateCertForm(makeFields({ cpe_required: "501" }));
-      expect(result.errors.cpe_required).toBe("Cannot exceed 500 CPE hours.");
+      expect(result.errors.cpe_required).toBe("Cannot exceed 500 CPD hours.");
     });
 
     it("accepts 500", () => {

@@ -94,7 +94,7 @@ export default function SignupPage() {
           Create an account
         </h1>
         <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-8">
-          Start tracking your CPE requirements
+          Start tracking your CPD requirements
         </p>
 
         <form onSubmit={handleSignup} className="space-y-4" noValidate>

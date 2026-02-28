@@ -283,7 +283,7 @@ export default function Next90DaysFocus() {
                         <div className="mt-2">
                           <div className="flex justify-between items-center mb-1">
                             <span className="text-xs text-gray-500 dark:text-gray-400">
-                              {cert.cpe_earned} / {cert.cpe_required} CPE
+                              {cert.cpe_earned} / {cert.cpe_required} CPD
                             </span>
                             <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
                               {cert.progressPct}%
@@ -303,7 +303,7 @@ export default function Next90DaysFocus() {
 
                         <p className="mt-1.5 text-xs text-gray-600 dark:text-gray-400">
                           Pace needed: ~{cert.monthlyPaceNeeded.toFixed(1)}{" "}
-                          CPE/month
+                          CPD/month
                         </p>
                       </div>
 

@@ -331,7 +331,7 @@ export default function AccountPage() {
 
   function downloadCodes(codes: string[]) {
     const text = [
-      "CPE Tracker — MFA Backup Codes",
+      "CredVault — MFA Backup Codes",
       "Keep these codes safe. Each can only be used once.",
       "",
       ...codes,
@@ -550,7 +550,7 @@ export default function AccountPage() {
           Notification Preferences
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
-          Choose which reminders you&apos;d like to receive about your CPE submissions. (Future email notifications.)
+          Choose which reminders you&apos;d like to receive about your CPD submissions. (Future email notifications.)
         </p>
 
         {profileLoading ? (
@@ -572,7 +572,7 @@ export default function AccountPage() {
                   Unsubmitted hours reminder
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Notify me when I have more than 20 hours of unsubmitted CPE activities.
+                  Notify me when I have more than 20 hours of unsubmitted CPD activities.
                 </p>
               </div>
             </label>
@@ -606,7 +606,7 @@ export default function AccountPage() {
                   Quarterly submission reminder
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                  Send me a quarterly reminder to submit my CPE activities to certification bodies.
+                  Send me a quarterly reminder to submit my CPD activities to certification bodies.
                 </p>
               </div>
             </label>
@@ -846,7 +846,7 @@ export default function AccountPage() {
           Danger Zone
         </h2>
         <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
-          Permanently deletes your account, all certifications, CPE activities, and uploaded files. This cannot be undone.
+          Permanently deletes your account, all certifications, CPD activities, and uploaded files. This cannot be undone.
         </p>
 
         {!showDelete ? (

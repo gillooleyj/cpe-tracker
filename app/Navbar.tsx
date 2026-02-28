@@ -57,7 +57,7 @@ export default function Navbar() {
                   Certifications
                 </Link>
                 <Link href="/cpe-activities" className={`text-sm font-medium transition-colors ${linkClass("/cpe-activities")}`}>
-                  CPE Activities
+                  CPD Activities
                 </Link>
                 <Link href="/account" className={`text-sm font-medium transition-colors ${linkClass("/account")}`}>
                   Account
@@ -132,7 +132,7 @@ export default function Navbar() {
               href="/cpe-activities"
               className={`block px-2 py-3 text-sm font-medium rounded-lg transition-colors ${linkClass("/cpe-activities")}`}
             >
-              CPE Activities
+              CPD Activities
             </Link>
             <Link
               href="/account"

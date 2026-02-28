@@ -350,7 +350,7 @@ function CertCard({
         {/* CPE progress bar */}
         {cert.cpe_required != null && (
           <div>
-            <p className={`${lbl} mb-1.5`}>CPE Progress</p>
+            <p className={`${lbl} mb-1.5`}>CPD Progress</p>
             <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all ${
@@ -407,7 +407,7 @@ function CertCard({
                 <p className={`${lbl} mb-1`}>Pace Indicator</p>
                 {cpePerMonth !== null && (
                   <p className="text-xs text-gray-700 dark:text-gray-300">
-                    Need {cpePerMonth} CPE/month to stay on track
+                    Need {cpePerMonth} CPD/month to stay on track
                   </p>
                 )}
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
@@ -416,30 +416,30 @@ function CertCard({
               </div>
             )}
 
-          {/* CPE cycle */}
+          {/* CPD cycle */}
           {cert.cpe_cycle_length != null && (
             <div>
-              <p className={`${lbl} mb-1`}>CPE Cycle</p>
+              <p className={`${lbl} mb-1`}>CPD Cycle</p>
               <p className="text-xs text-gray-700 dark:text-gray-300">
                 {formatCycleFull(cert.cpe_cycle_length)}
               </p>
             </div>
           )}
 
-          {/* CPE Activities */}
+          {/* CPD Activities */}
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <p className={lbl}>CPE Activities</p>
+                <p className={lbl}>CPD Activities</p>
                 {cert.organization_url && (
                   <a
                     href={cert.organization_url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline transition-colors"
-                    title={`Submit CPE to ${cert.organization}`}
+                    title={`Submit CPD to ${cert.organization}`}
                   >
-                    Submit CPE
+                    Submit CPD
                   </a>
                 )}
               </div>
@@ -454,13 +454,13 @@ function CertCard({
             {activities.length === 0 ? (
               <div className="bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700 rounded-lg p-3 text-center">
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  No CPE activities logged yet.
+                  No CPD activities logged yet.
                 </p>
                 <Link
                   href={`/cpe-activities?cert=${cert.id}`}
                   className="text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline mt-1 block"
                 >
-                  Add your first CPE activity →
+                  Add your first CPD activity →
                 </Link>
               </div>
             ) : (
@@ -1052,7 +1052,7 @@ export default function CertificationsPage() {
             Certifications
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Manage your professional certifications and CPE requirements.
+            Manage your professional certifications and CPD requirements.
           </p>
         </div>
         <button
@@ -1268,10 +1268,10 @@ export default function CertificationsPage() {
                 <FieldWarning name="expiration_date" />
               </div>
 
-              {/* CPE hours required */}
+              {/* CPD hours required */}
               <div>
                 <label className={labelClass}>
-                  {getOrgInfo(form.organization)?.creditType ?? "CPE"} Hours Required <span className="text-red-500">*</span>
+                  {getOrgInfo(form.organization)?.creditType ?? "CPD"} Hours Required <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -1286,9 +1286,9 @@ export default function CertificationsPage() {
                 <FieldError name="cpe_required" />
               </div>
 
-              {/* CPE cycle length */}
+              {/* CPD cycle length */}
               <div>
-                <label className={labelClass}>CPE Cycle Length (months)</label>
+                <label className={labelClass}>CPD Cycle Length (months)</label>
                 <input
                   type="number"
                   min="1"
@@ -1302,10 +1302,10 @@ export default function CertificationsPage() {
                 <FieldError name="cpe_cycle_length" />
               </div>
 
-              {/* Annual minimum CPE */}
+              {/* Annual minimum CPD */}
               <div>
                 <label className={labelClass}>
-                  Annual Minimum {getOrgInfo(form.organization)?.creditType ?? "CPE"}
+                  Annual Minimum {getOrgInfo(form.organization)?.creditType ?? "CPD"}
                 </label>
                 <input
                   type="number"
@@ -1453,7 +1453,7 @@ export default function CertificationsPage() {
                   value={submitNotes}
                   onChange={e => setSubmitNotes(e.target.value)}
                   maxLength={500}
-                  placeholder="e.g. Submitted via ISC2 CPE Portal…"
+                  placeholder="e.g. Submitted via ISC2 CPD Portal…"
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-900 dark:focus:ring-blue-500 focus:border-transparent resize-none"
                 />
                 <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 text-right">

@@ -34,8 +34,8 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-2">
             <li><strong>Account data:</strong> Email address and hashed password, provided at signup.</li>
             <li><strong>Profile data:</strong> First name, last name, and optional professional details (job title, organization type, location, certification focus). All optional fields beyond name are voluntary.</li>
-            <li><strong>Certification records:</strong> Names, issuers, dates, and CPE requirements for certifications you add.</li>
-            <li><strong>CPE activity records:</strong> Training activities, hours, dates, providers, and optional descriptions you log.</li>
+            <li><strong>Certification records:</strong> Names, issuers, dates, and CPD requirements for certifications you add.</li>
+            <li><strong>CPD activity records:</strong> Training activities, hours, dates, providers, and optional descriptions you log.</li>
             <li><strong>File attachments:</strong> Certificate scans or proof-of-completion documents you optionally upload (stored privately; never shared).</li>
             <li><strong>Security data:</strong> Multi-factor authentication factors and bcrypt-hashed backup codes.</li>
             <li><strong>Notification preferences:</strong> Your choices about which in-app reminders to receive.</li>
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           <ul className="list-disc pl-5 space-y-2">
             <li>To provide and operate the certification tracking service.</li>
             <li>To authenticate you securely, including multi-factor authentication.</li>
-            <li>To display your CPE progress and renewal deadlines.</li>
+            <li>To display your CPD progress and renewal deadlines.</li>
             <li>To send in-app notifications you have opted into (future feature).</li>
           </ul>
           <p className="mt-3">We do not sell your data. We do not use your data for advertising or share it with third parties for marketing.</p>
@@ -78,7 +78,7 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">6. Data Retention</h2>
           <p>
-            Your data is retained for as long as your account is active. When you delete your account, all personal data — including your profile, certifications, CPE activities, and uploaded files — is permanently and immediately deleted. We do not retain backup copies of deleted account data.
+            Your data is retained for as long as your account is active. When you delete your account, all personal data — including your profile, certifications, CPD activities, and uploaded files — is permanently and immediately deleted. We do not retain backup copies of deleted account data.
           </p>
         </section>
 

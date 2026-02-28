@@ -182,7 +182,7 @@ function MFASetupInner() {
 
   function downloadCodes() {
     const text = [
-      "CPE Tracker — MFA Backup Codes",
+      "CredVault — MFA Backup Codes",
       "Keep these codes safe. Each can only be used once.",
       "",
       ...backupCodes,

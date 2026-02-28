@@ -27,7 +27,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">2. Description of Service</h2>
           <p>
-            CredVault is a tool for tracking professional certifications, continuing professional education (CPE/CPD) activities, and renewal deadlines. It is provided for personal and professional use.
+            CredVault is a tool for tracking professional certifications, continuing professional development (CPD) activities, and renewal deadlines. It is provided for personal and professional use.
           </p>
         </section>
 
@@ -65,9 +65,9 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">6. No Warranty on CPE Compliance</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">6. No Warranty on CPD Compliance</h2>
           <p>
-            CredVault is a tracking tool only. We do not verify, certify, or guarantee that activities logged in the app meet the CPE requirements of any certification body. You are solely responsible for confirming compliance with your certification authority.
+            CredVault is a tracking tool only. We do not verify, certify, or guarantee that activities logged in the app meet the CPD requirements of any certification body. You are solely responsible for confirming compliance with your certification authority.
           </p>
         </section>
 

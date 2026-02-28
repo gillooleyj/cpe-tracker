@@ -132,13 +132,13 @@ export function validateCertForm(raw: CertFormFields): ValidationResult {
   let cpeNum = NaN;
 
   if (!cpeStr) {
-    errors.cpe_required = "CPE hours required is required.";
+    errors.cpe_required = "CPD hours required is required.";
   } else {
     cpeNum = Number(cpeStr);
     if (!Number.isInteger(cpeNum) || cpeNum < 1) {
       errors.cpe_required = "Enter a whole number of at least 1.";
     } else if (cpeNum > 500) {
-      errors.cpe_required = "Cannot exceed 500 CPE hours.";
+      errors.cpe_required = "Cannot exceed 500 CPD hours.";
     }
   }
 
@@ -161,7 +161,7 @@ export function validateCertForm(raw: CertFormFields): ValidationResult {
       errors.annual_minimum_cpe = "Enter a non-negative whole number.";
     } else if (!isNaN(cpeNum) && n > cpeNum) {
       errors.annual_minimum_cpe =
-        `Cannot exceed total CPE hours required (${cpeNum}).`;
+        `Cannot exceed total CPD hours required (${cpeNum}).`;
     }
   }
 

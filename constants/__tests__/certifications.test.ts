@@ -22,16 +22,16 @@ describe("ORGANIZATIONS", () => {
       expect(org.name.length).toBeGreaterThan(0);
       expect(typeof org.url).toBe("string");
       expect(org.url).toMatch(/^https:\/\//);
-      expect(["CPE", "CEU", "PDU", "PDC", "RCH", "ECE", "CE"]).toContain(org.creditType);
+      expect(["CPD", "CEU", "PDU", "PDC", "RCH", "ECE", "CE"]).toContain(org.creditType);
       expect(typeof org.cycleMonths).toBe("number");
       expect(org.cycleMonths).toBeGreaterThan(0);
     }
   });
 
-  it("includes ISC2 with CPE credit type", () => {
+  it("includes ISC2 with CPD credit type", () => {
     const isc2 = ORGANIZATIONS.find((o) => o.name === "ISC2");
     expect(isc2).toBeDefined();
-    expect(isc2!.creditType).toBe("CPE");
+    expect(isc2!.creditType).toBe("CPD");
     expect(isc2!.cycleMonths).toBe(36);
   });
 
@@ -70,7 +70,7 @@ describe("CERT_TEMPLATES", () => {
     expect(cissp!.organization).toBe("ISC2");
     expect(cissp!.cpe_required).toBe(120);
     expect(cissp!.annual_minimum_cpe).toBe(40);
-    expect(cissp!.credit_type).toBe("CPE");
+    expect(cissp!.credit_type).toBe("CPD");
   });
 
   it("contains GSEC from GIAC with null annual_minimum_cpe", () => {

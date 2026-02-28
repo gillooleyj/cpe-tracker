@@ -21,7 +21,7 @@ const templates: CertTemplate[] = [
     cpe_required: 120,
     cpe_cycle_length: 36,
     annual_minimum_cpe: 40,
-    credit_type: "CPE",
+    credit_type: "CPD",
   },
   {
     name: "CCSP",
@@ -30,7 +30,7 @@ const templates: CertTemplate[] = [
     cpe_required: 90,
     cpe_cycle_length: 36,
     annual_minimum_cpe: 30,
-    credit_type: "CPE",
+    credit_type: "CPD",
   },
   {
     name: "CISA",
@@ -39,7 +39,7 @@ const templates: CertTemplate[] = [
     cpe_required: 120,
     cpe_cycle_length: 36,
     annual_minimum_cpe: 20,
-    credit_type: "CPE",
+    credit_type: "CPD",
   },
 ];
 
@@ -412,8 +412,8 @@ describe("CertAutocomplete", () => {
       await act(async () => {
         fireEvent.focus(input);
       });
-      // Multiple suggestions may show "120 CPE" (CISSP and CISA both have 120 CPE)
-      const matches = screen.getAllByText(/120 CPE/);
+      // Multiple suggestions may show "120 CPD" (CISSP and CISA both have 120 CPD)
+      const matches = screen.getAllByText(/120 CPD/);
       expect(matches.length).toBeGreaterThan(0);
     });
 
@@ -435,7 +435,7 @@ describe("CertAutocomplete", () => {
           cpe_required: 36,
           cpe_cycle_length: 48,
           annual_minimum_cpe: null,
-          credit_type: "CPE",
+          credit_type: "CPD",
         },
       ]);
       renderComponent({});
