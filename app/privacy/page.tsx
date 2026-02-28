@@ -23,7 +23,7 @@ export default function PrivacyPage() {
             CredVault ("we," "us," or "our") is a professional certification tracking application.
             For questions about this policy or to exercise your data rights, contact us at{" "}
             <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
-              privacy@credvault.app
+              privacy@cooeytools.com
             </a>.
           </p>
         </section>
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
           <p className="mt-3">
             To exercise rights that are not self-service, contact{" "}
             <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
-              privacy@credvault.app
+              privacy@cooeytools.com
             </a>.
           </p>
         </section>
@@ -119,7 +119,7 @@ export default function PrivacyPage() {
           <p>
             Questions or concerns about this policy?{" "}
             <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
-              privacy@credvault.app
+              privacy@cooeytools.com
             </a>
           </p>
         </section>

@@ -104,7 +104,7 @@ export default function TermsPage() {
           <p>
             Questions about these terms?{" "}
             <a href="mailto:legal@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
-              legal@credvault.app
+              legal@cooeytools.com
             </a>
           </p>
         </section>
