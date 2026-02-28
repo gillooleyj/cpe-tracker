@@ -1,5 +1,4 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -174,15 +173,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save activity." }, { status: 500 });
     }
 
-    // Insert junction records using the service-role client so the RLS
-    // WITH CHECK subquery on cpe_activities doesn't block newly-created rows.
-    // Ownership has already been verified above via the ownership check.
-    const adminSupabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
-    const { error: junctionError } = await adminSupabase
+    // Insert junction records. Migration 009 simplified the RLS INSERT policy
+    // to only check cert ownership (removing the redundant activity-ownership
+    // subquery), so the regular user-scoped client works here reliably.
+    // Cert ownership was already explicitly verified above.
+    const { error: junctionError } = await supabase
       .from("certification_activities")
       .insert(
         body.certifications.map((c) => ({
@@ -193,6 +188,7 @@ export async function POST(request: Request) {
       );
     if (junctionError) {
       console.error("Junction insert error:", junctionError);
+      return NextResponse.json({ error: "Failed to link certifications." }, { status: 500 });
     }
 
     // Recalculate cpe_earned for affected certs
