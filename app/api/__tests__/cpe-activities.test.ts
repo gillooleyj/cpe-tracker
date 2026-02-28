@@ -16,6 +16,7 @@ vi.mock("next/server", () => ({
 }));
 
 vi.mock("@supabase/ssr", () => ({ createServerClient: vi.fn() }));
+vi.mock("@supabase/supabase-js", () => ({ createClient: vi.fn() }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,7 +59,9 @@ const validBody = {
 describe("POST /api/cpe-activities", () => {
   let POST: (req: Request) => Promise<{ body: unknown; status: number }>;
   let createServerClient: ReturnType<typeof vi.fn>;
+  let createClient: ReturnType<typeof vi.fn>;
   let mockSupabase: ReturnType<typeof makeChain>;
+  let mockAdminSupabase: ReturnType<typeof makeChain>;
 
   beforeEach(async () => {
     // Set fake time so "today" is after activity_date
@@ -82,14 +85,33 @@ describe("POST /api/cpe-activities", () => {
       createServerClient: vi.fn(),
     }));
 
+    vi.doMock("@supabase/supabase-js", () => ({
+      createClient: vi.fn(),
+    }));
+
     const mod = await import("@/app/api/cpe-activities/route");
     POST = mod.POST as any;
 
     const ssr = await import("@supabase/ssr");
     createServerClient = ssr.createServerClient as ReturnType<typeof vi.fn>;
 
+    const supabaseJs = await import("@supabase/supabase-js");
+    createClient = supabaseJs.createClient as ReturnType<typeof vi.fn>;
+
     mockSupabase = makeChain();
     createServerClient.mockReturnValue(mockSupabase);
+
+    // Default admin client: junction insert succeeds
+    mockAdminSupabase = makeChain();
+    const defaultJunctionChain = makeChain();
+    (defaultJunctionChain as any).then = (resolve: (v: unknown) => void) =>
+      resolve({ error: null });
+    mockAdminSupabase.from = vi.fn().mockImplementation(() => {
+      const caChain = makeChain();
+      caChain.insert = vi.fn().mockReturnValue(defaultJunctionChain);
+      return caChain;
+    });
+    createClient.mockReturnValue(mockAdminSupabase);
   });
 
   afterEach(() => {
@@ -374,14 +396,11 @@ describe("POST /api/cpe-activities", () => {
     const activityChain = makeChain();
     activityChain.single = vi.fn().mockResolvedValue({ data: activityData, error: null });
 
-    const junctionChain = makeChain();
-    (junctionChain as any).then = (resolve: (v: unknown) => void) => resolve({ error: null });
-
     const recalcSelectChain = makeChain();
     (recalcSelectChain as any).then = (resolve: (v: unknown) => void) =>
       resolve({ data: [{ hours_applied: 8 }] });
 
-    // certifications is called twice: first for ownership check (SELECT), then for recalc (UPDATE)
+    // certifications: first call = ownership SELECT, second call = recalc UPDATE
     let certCallCount = 0;
     const ownershipChain = makeChain();
     (ownershipChain as any).then = (resolve: (v: unknown) => void) =>
@@ -389,11 +408,11 @@ describe("POST /api/cpe-activities", () => {
     const certUpdateChain = makeChain();
     (certUpdateChain as any).then = (resolve: (v: unknown) => void) => resolve({ error: null });
 
+    // User client: activity insert + recalc select/update (junction insert is via admin client)
     mockSupabase.from = vi.fn().mockImplementation((table: string) => {
       if (table === "cpe_activities") return activityChain;
       if (table === "certification_activities") {
         const caChain = makeChain();
-        caChain.insert = vi.fn().mockReturnValue(junctionChain);
         caChain.select = vi.fn().mockReturnValue(recalcSelectChain);
         return caChain;
       }
@@ -404,6 +423,7 @@ describe("POST /api/cpe-activities", () => {
     });
 
     createServerClient.mockReturnValue(mockSupabase);
+    // Admin client default (junction insert success) already set in beforeEach
 
     const res = await POST(makeRequest(validBody));
     expect(res.status).toBe(201);
@@ -423,10 +443,6 @@ describe("POST /api/cpe-activities", () => {
     const activityChain = makeChain();
     activityChain.single = vi.fn().mockResolvedValue({ data: activityData, error: null });
 
-    const junctionChain = makeChain();
-    (junctionChain as any).then = (resolve: (v: unknown) => void) =>
-      resolve({ error: { message: "junction error" } });
-
     const recalcSelectChain = makeChain();
     (recalcSelectChain as any).then = (resolve: (v: unknown) => void) =>
       resolve({ data: [] });
@@ -438,11 +454,11 @@ describe("POST /api/cpe-activities", () => {
     const certUpdateChain = makeChain();
     (certUpdateChain as any).then = (resolve: (v: unknown) => void) => resolve({ error: null });
 
+    // User client: activity insert + recalc (junction insert is via admin client)
     mockSupabase.from = vi.fn().mockImplementation((table: string) => {
       if (table === "cpe_activities") return activityChain;
       if (table === "certification_activities") {
         const caChain = makeChain();
-        caChain.insert = vi.fn().mockReturnValue(junctionChain);
         caChain.select = vi.fn().mockReturnValue(recalcSelectChain);
         return caChain;
       }
@@ -451,8 +467,18 @@ describe("POST /api/cpe-activities", () => {
       }
       return makeChain();
     });
-
     createServerClient.mockReturnValue(mockSupabase);
+
+    // Override admin client to fail the junction insert
+    const failJunctionChain = makeChain();
+    (failJunctionChain as any).then = (resolve: (v: unknown) => void) =>
+      resolve({ error: { message: "junction error" } });
+    mockAdminSupabase.from = vi.fn().mockImplementation(() => {
+      const caChain = makeChain();
+      caChain.insert = vi.fn().mockReturnValue(failJunctionChain);
+      return caChain;
+    });
+    createClient.mockReturnValue(mockAdminSupabase);
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const res = await POST(makeRequest(validBody));
@@ -487,13 +513,11 @@ describe("POST /api/cpe-activities", () => {
     const certUpdateChain = makeChain();
     (certUpdateChain as any).then = (resolve: (v: unknown) => void) => resolve({ error: null });
 
+    // User client: activity insert + recalc (junction insert is via admin client)
     mockSupabase.from = vi.fn().mockImplementation((table: string) => {
       if (table === "cpe_activities") return activityChain;
       if (table === "certification_activities") {
         const caChain = makeChain();
-        const junctionChain = makeChain();
-        (junctionChain as any).then = (resolve: (v: unknown) => void) => resolve({ error: null });
-        caChain.insert = vi.fn().mockReturnValue(junctionChain);
         caChain.select = vi.fn().mockReturnValue(recalcSelectChain);
         return caChain;
       }
@@ -504,6 +528,7 @@ describe("POST /api/cpe-activities", () => {
     });
 
     createServerClient.mockReturnValue(mockSupabase);
+    // Admin client default (junction insert success) already set in beforeEach
 
     const res = await POST(makeRequest(bodyWithId));
     expect(res.status).toBe(201);
