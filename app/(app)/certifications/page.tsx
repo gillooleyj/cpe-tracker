@@ -436,10 +436,10 @@ function CertCard({
                     href={cert.organization_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-900 dark:hover:text-blue-400 transition-colors"
+                    className="text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline transition-colors"
                     title={`Submit CPE to ${cert.organization}`}
                   >
-                    🔗 Submit CPE
+                    Submit CPE
                   </a>
                 )}
               </div>
@@ -580,7 +580,7 @@ function CertCard({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline"
               >
-                🔗 View Certificate
+                View Certificate
               </a>
             </div>
           )}
@@ -595,7 +595,7 @@ function CertCard({
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-blue-900 dark:text-blue-400 hover:underline"
               >
-                🔗 Visit {cert.organization} Website
+                Visit {cert.organization} Website
               </a>
             </div>
           )}
