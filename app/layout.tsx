@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 import ThemeProvider from "./ThemeProvider";
 import Navbar from "./Navbar";
@@ -20,9 +21,22 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 antialiased">
         <AuthProvider>
           <ThemeProvider>
-            <Navbar />
-            {children}
-            <SessionTimeoutManager />
+            <div className="flex flex-col min-h-screen">
+              <Navbar />
+              <div className="flex-1">
+                {children}
+              </div>
+              <footer className="border-t border-gray-200 dark:border-gray-700 py-6 px-4 mt-auto">
+                <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500 dark:text-gray-400">
+                  <p>© {new Date().getFullYear()} CredVault. All rights reserved.</p>
+                  <nav className="flex gap-4">
+                    <Link href="/privacy" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Privacy Policy</Link>
+                    <Link href="/terms" className="hover:text-gray-700 dark:hover:text-gray-200 transition-colors">Terms of Service</Link>
+                  </nav>
+                </div>
+              </footer>
+              <SessionTimeoutManager />
+            </div>
           </ThemeProvider>
         </AuthProvider>
       </body>

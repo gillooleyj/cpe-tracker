@@ -36,15 +36,6 @@ const CERT_FOCUS_OPTIONS = [
   "Other",
 ] as const;
 
-const HOW_HEARD_OPTIONS = [
-  "Search engine",
-  "Social media",
-  "Colleague / referral",
-  "Conference or event",
-  "Online article or blog",
-  "Other",
-] as const;
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type Profile = {
@@ -56,7 +47,6 @@ type Profile = {
   state_province:           string;
   postal_code:              string;
   country:                  string;
-  how_heard:                string;
   certification_focus:      string;
   remind_quarterly_submit:  boolean;
   remind_20hrs_unsubmitted: boolean;
@@ -72,7 +62,6 @@ const EMPTY_PROFILE: Profile = {
   state_province:           "",
   postal_code:              "",
   country:                  "",
-  how_heard:                "",
   certification_focus:      "",
   remind_quarterly_submit:  false,
   remind_20hrs_unsubmitted: true,
@@ -118,6 +107,12 @@ export default function AccountPage() {
   const [profileSaving, setProfileSaving]   = useState(false);
   const [profileSaveMsg, setProfileSaveMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
+  // ── Delete account state ───────────────────────────────────────────────────
+  const [showDelete, setShowDelete]         = useState(false);
+  const [deleteConfirm, setDeleteConfirm]   = useState("");
+  const [deleteLoading, setDeleteLoading]   = useState(false);
+  const [deleteError, setDeleteError]       = useState<string | null>(null);
+
   // ── MFA state ──────────────────────────────────────────────────────────────
   const [factorId, setFactorId]             = useState<string | null>(null);
   const [unusedCodeCount, setUnusedCodeCount] = useState<number | null>(null);
@@ -149,7 +144,6 @@ export default function AccountPage() {
         state_province:           data.state_province           ?? "",
         postal_code:              data.postal_code              ?? "",
         country:                  data.country                  ?? "",
-        how_heard:                data.how_heard                ?? "",
         certification_focus:      data.certification_focus      ?? "",
         remind_quarterly_submit:  data.remind_quarterly_submit  ?? false,
         remind_20hrs_unsubmitted: data.remind_20hrs_unsubmitted ?? true,
@@ -221,7 +215,6 @@ export default function AccountPage() {
       state_province:           profile.state_province.trim()      || null,
       postal_code:              profile.postal_code.trim()         || null,
       country:                  profile.country.trim()             || null,
-      how_heard:                profile.how_heard                  || null,
       certification_focus:      profile.certification_focus.trim() || null,
       remind_quarterly_submit:  profile.remind_quarterly_submit,
       remind_20hrs_unsubmitted: profile.remind_20hrs_unsubmitted,
@@ -315,6 +308,25 @@ export default function AccountPage() {
 
     await supabase.auth.refreshSession();
     window.location.href = "/mfa/setup";
+  }
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+  async function handleDeleteAccount() {
+    setDeleteLoading(true);
+    setDeleteError(null);
+
+    const res = await fetch("/api/account", { method: "DELETE" });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setDeleteError(body.error ?? "Failed to delete account. Please try again.");
+      setDeleteLoading(false);
+      return;
+    }
+
+    // Sign out locally and return to home
+    await supabase.auth.signOut();
+    window.location.href = "/";
   }
 
   function downloadCodes(codes: string[]) {
@@ -487,24 +499,6 @@ export default function AccountPage() {
               </div>
             </div>
 
-            {/* How heard */}
-            <div>
-              <label htmlFor="howHeard" className={labelClass}>
-                How did you hear about CPE Tracker?
-              </label>
-              <select
-                id="howHeard"
-                value={profile.how_heard}
-                onChange={(e) => pf("how_heard", e.target.value)}
-                className={selectClass}
-              >
-                <option value="">Select…</option>
-                {HOW_HEARD_OPTIONS.map((o) => (
-                  <option key={o} value={o}>{o}</option>
-                ))}
-              </select>
-            </div>
-
             {/* Primary certification focus */}
             <div>
               <label htmlFor="certFocus" className={labelClass}>
@@ -643,8 +637,8 @@ export default function AccountPage() {
         )}
       </section>
 
-      {/* ── MFA section (unchanged) ─────────────────────────────────────────── */}
-      <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6">
+      {/* ── MFA section ─────────────────────────────────────────────────────── */}
+      <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
             Two-Factor Authentication
@@ -821,6 +815,83 @@ export default function AccountPage() {
                 </form>
               </div>
             )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Data & Privacy section ───────────────────────────────────────────── */}
+      <section className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm p-6 mb-6">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">
+          Data &amp; Privacy
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          Download a copy of all data associated with your account, or permanently delete your account.
+        </p>
+
+        <a
+          href="/api/account/export"
+          download
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download My Data
+        </a>
+      </section>
+
+      {/* ── Danger Zone ──────────────────────────────────────────────────────── */}
+      <section className="bg-white dark:bg-gray-800 border border-red-200 dark:border-red-900 rounded-xl shadow-sm p-6">
+        <h2 className="text-base font-semibold text-red-700 dark:text-red-400 mb-1">
+          Danger Zone
+        </h2>
+        <p className="text-xs text-gray-500 dark:text-gray-400 mb-5">
+          Permanently deletes your account, all certifications, CPE activities, and uploaded files. This cannot be undone.
+        </p>
+
+        {!showDelete ? (
+          <button
+            onClick={() => { setShowDelete(true); setDeleteConfirm(""); setDeleteError(null); }}
+            className="px-4 py-2 text-sm font-medium text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+          >
+            Delete Account
+          </button>
+        ) : (
+          <div className="bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800 rounded-lg p-4 space-y-3">
+            <p className="text-sm text-red-700 dark:text-red-400 font-medium">
+              This will permanently delete your account and all associated data.
+            </p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Type <span className="font-mono font-semibold">DELETE</span> to confirm.
+            </p>
+            {deleteError && (
+              <p className="text-sm text-red-600 dark:text-red-400">{deleteError}</p>
+            )}
+            <input
+              type="text"
+              value={deleteConfirm}
+              onChange={(e) => setDeleteConfirm(e.target.value)}
+              placeholder="DELETE"
+              className="w-full px-3 py-2 border border-red-300 dark:border-red-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500 text-sm font-mono"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDelete(false)}
+                disabled={deleteLoading}
+                className="flex-1 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirm !== "DELETE" || deleteLoading}
+                className="flex-1 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleteLoading ? "Deleting…" : "Permanently Delete Account"}
+              </button>
+            </div>
           </div>
         )}
       </section>

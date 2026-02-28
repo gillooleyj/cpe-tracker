@@ -4,6 +4,8 @@ import type { NextRequest } from "next/server";
 
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password"];
 const PUBLIC_ROUTES = ["/"];
+// Always accessible regardless of auth state or beta gate (required by law)
+const LEGAL_ROUTES = ["/privacy", "/terms"];
 const MFA_VERIFY_ROUTE = "/mfa";
 const MFA_SETUP_ROUTE = "/mfa/setup";
 
@@ -13,8 +15,8 @@ export async function middleware(request: NextRequest) {
   // ── Beta access gate ──────────────────────────────────────────────────────
   // Remove SITE_PASSWORD from env to disable this gate after user testing.
   const SITE_PASSWORD = process.env.SITE_PASSWORD;
-  if (pathname.startsWith("/beta-access")) {
-    // Always allow the gate page through — no auth checks — to avoid redirect loops.
+  // Legal pages and beta-access gate page: always through, no auth checks
+  if (pathname.startsWith("/beta-access") || LEGAL_ROUTES.includes(pathname)) {
     return NextResponse.next({ request });
   }
   if (SITE_PASSWORD) {
@@ -57,7 +59,7 @@ export async function middleware(request: NextRequest) {
 
   // ── Unauthenticated ──────────────────────────────────────────────────────────
   if (!user) {
-    if (AUTH_ROUTES.includes(pathname) || PUBLIC_ROUTES.includes(pathname)) return response;
+    if (AUTH_ROUTES.includes(pathname) || PUBLIC_ROUTES.includes(pathname) || LEGAL_ROUTES.includes(pathname)) return response;
     return NextResponse.redirect(new URL("/login", request.url));
   }
 

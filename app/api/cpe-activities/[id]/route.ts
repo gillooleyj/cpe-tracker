@@ -214,10 +214,10 @@ export async function DELETE(
       return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
     }
 
-    // Verify ownership and get cert IDs before deleting
+    // Verify ownership and get cert IDs + attachment paths before deleting
     const { data: existing } = await supabase
       .from("cpe_activities")
-      .select("id, user_id")
+      .select("id, user_id, attachment_urls")
       .eq("id", id)
       .eq("user_id", user.id)
       .single();
@@ -230,6 +230,13 @@ export async function DELETE(
       .select("certification_id")
       .eq("activity_id", id);
     const certIds = (links ?? []).map((r) => r.certification_id);
+
+    // Delete storage files (best-effort; client-side UI also does this,
+    // but server-side cleanup handles direct API calls and edge cases)
+    const attachmentPaths = (existing.attachment_urls as string[]) ?? [];
+    if (attachmentPaths.length > 0) {
+      await supabase.storage.from("cpe-attachments").remove(attachmentPaths);
+    }
 
     // Delete activity (certification_activities cascade automatically)
     const { error: deleteError } = await supabase
