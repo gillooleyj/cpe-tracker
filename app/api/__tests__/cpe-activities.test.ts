@@ -270,9 +270,20 @@ describe("POST /api/cpe-activities", () => {
       }),
     };
 
-    const chain = makeChain();
-    chain.single = vi.fn().mockResolvedValue({ data: null, error: { message: "insert failed" } });
-    mockSupabase.from = vi.fn().mockReturnValue(chain);
+    // Ownership check now runs BEFORE the insert, so certifications must
+    // return the cert as owned; only then does the insert fail with 500.
+    const ownershipChain = makeChain();
+    (ownershipChain as any).then = (resolve: (v: unknown) => void) =>
+      resolve({ data: [{ id: "cert-uuid-1" }], error: null });
+
+    const activityChain = makeChain();
+    activityChain.single = vi.fn().mockResolvedValue({ data: null, error: { message: "insert failed" } });
+
+    mockSupabase.from = vi.fn().mockImplementation((table: string) => {
+      if (table === "certifications") return ownershipChain;
+      if (table === "cpe_activities") return activityChain;
+      return makeChain();
+    });
     createServerClient.mockReturnValue(mockSupabase);
 
     const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});

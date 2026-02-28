@@ -152,8 +152,8 @@ export async function PUT(
       return NextResponse.json({ error: "Failed to verify certifications." }, { status: 500 });
     }
 
-    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: string }) => c.id));
-    if (!newCertIds.every((cid) => ownedIds.has(cid))) {
+    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: unknown }) => String(c.id)));
+    if (!newCertIds.every((cid) => ownedIds.has(String(cid)))) {
       return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 

@@ -129,6 +129,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ errors }, { status: 400 });
     }
 
+    // Verify cert ownership BEFORE inserting the activity so a failed check
+    // never leaves an orphaned activity row in the database.
+    // Normalize IDs to strings on both sides: the certifications table uses
+    // BIGINT which Supabase JS may return as number or string depending on value.
+    const certIds = body.certifications.map((c) => c.id);
+    const { data: ownedCerts, error: certCheckError } = await supabase
+      .from("certifications")
+      .select("id")
+      .eq("user_id", user.id)
+      .in("id", certIds);
+
+    if (certCheckError) {
+      return NextResponse.json({ error: "Failed to verify certifications." }, { status: 500 });
+    }
+
+    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: unknown }) => String(c.id)));
+    if (!certIds.every((id) => ownedIds.has(String(id)))) {
+      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
+    }
+
     // Build insert payload — id is optional (frontend may provide for file path alignment)
     const payload: Record<string, unknown> = {
       user_id:         user.id,
@@ -151,23 +171,6 @@ export async function POST(request: Request) {
     if (insertError) {
       console.error("Activity insert error:", insertError);
       return NextResponse.json({ error: "Failed to save activity." }, { status: 500 });
-    }
-
-    // Verify all certification IDs belong to the authenticated user
-    const certIds = body.certifications.map((c) => c.id);
-    const { data: ownedCerts, error: certCheckError } = await supabase
-      .from("certifications")
-      .select("id")
-      .eq("user_id", user.id)
-      .in("id", certIds);
-
-    if (certCheckError) {
-      return NextResponse.json({ error: "Failed to verify certifications." }, { status: 500 });
-    }
-
-    const ownedIds = new Set((ownedCerts ?? []).map((c: { id: string }) => c.id));
-    if (!certIds.every((id) => ownedIds.has(id))) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
     }
 
     // Insert junction records
