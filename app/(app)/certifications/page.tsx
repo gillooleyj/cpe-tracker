@@ -1074,12 +1074,12 @@ export default function CertificationsPage() {
 
       {/* Sort + filter controls */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 shrink-0">
           {(["active", "all", "expired"] as FilterBy[]).map((f) => (
             <button
               key={f}
               onClick={() => setFilterBy(f)}
-              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+              className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
                 filterBy === f
                   ? "bg-blue-900 dark:bg-blue-700 text-white"
                   : "border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"

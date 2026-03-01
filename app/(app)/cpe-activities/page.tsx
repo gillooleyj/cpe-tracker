@@ -969,12 +969,12 @@ function CpeActivitiesInner() {
       {!loading && activities.length > 0 && (
         <div className="flex items-center justify-between mb-4">
           {/* Submission status tabs */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 shrink-0">
             {(["all", "submitted", "unsubmitted"] as SubmitFilter[]).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilterSubmit(f)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors whitespace-nowrap ${
                   filterSubmit === f
                     ? "bg-blue-900 dark:bg-blue-700 text-white"
                     : "border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
