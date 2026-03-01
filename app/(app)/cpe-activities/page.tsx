@@ -110,12 +110,12 @@ function disabledCertIds(
 ): Set<string> {
   const selectedIds = new Set(selections.map((s) => s.certId));
   const selectedOrgs = new Set(
-    certs.filter((c) => selectedIds.has(c.id)).map((c) => c.organization)
+    certs.filter((c) => selectedIds.has(String(c.id))).map((c) => c.organization)
   );
   const out = new Set<string>();
   for (const c of certs) {
-    if (!selectedIds.has(c.id) && selectedOrgs.has(c.organization)) {
-      out.add(c.id);
+    if (!selectedIds.has(String(c.id)) && selectedOrgs.has(c.organization)) {
+      out.add(String(c.id));
     }
   }
   return out;
@@ -865,13 +865,13 @@ function CpeActivitiesInner() {
               ) : (
                 <div className="space-y-2">
                   {certs.map((cert) => {
-                    const isSelected  = certSelections.some((s) => s.certId === cert.id);
-                    const isDisabled  = !isSelected && disabled.has(cert.id);
-                    const selection   = certSelections.find((s) => s.certId === cert.id);
+                    const isSelected  = certSelections.some((s) => s.certId === String(cert.id));
+                    const isDisabled  = !isSelected && disabled.has(String(cert.id));
+                    const selection   = certSelections.find((s) => s.certId === String(cert.id));
                     const blockingOrg = isDisabled
                       ? certs.find(
                           (c) =>
-                            certSelections.some((s) => s.certId === c.id) &&
+                            certSelections.some((s) => s.certId === String(c.id)) &&
                             c.organization === cert.organization
                         )
                       : null;
@@ -891,7 +891,7 @@ function CpeActivitiesInner() {
                           type="checkbox"
                           checked={isSelected}
                           disabled={isDisabled}
-                          onChange={() => toggleCert(cert.id)}
+                          onChange={() => toggleCert(String(cert.id))}
                           className="w-4 h-4 rounded accent-blue-900 dark:accent-blue-400 shrink-0"
                         />
                         <div className="flex-1 min-w-0">
@@ -917,7 +917,7 @@ function CpeActivitiesInner() {
                               min="0.25"
                               step="0.25"
                               value={selection?.hoursApplied ?? ""}
-                              onChange={(e) => setHours(cert.id, e.target.value)}
+                              onChange={(e) => setHours(String(cert.id), e.target.value)}
                               className="w-20 px-2 py-1 text-xs border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-900"
                             />
                           </div>

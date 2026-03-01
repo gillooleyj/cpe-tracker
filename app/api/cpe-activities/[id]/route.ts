@@ -167,13 +167,14 @@ export async function PUT(
       .from("certification_activities")
       .insert(
         body.certifications.map((c) => ({
-          certification_id: c.id,
+          certification_id: Number(c.id),
           activity_id:      id,
           hours_applied:    Number(c.hours_applied),
         }))
       );
     if (junctionError) {
       console.error("Junction insert error:", junctionError);
+      return NextResponse.json({ error: "Failed to link certifications." }, { status: 500 });
     }
 
     // Recalc all affected certs (old + new)
