@@ -85,8 +85,8 @@ export default function CertAutocomplete({
         type="search"
         required
         role="combobox"
-        name="certification-name-field"
-        autoComplete="chrome-off"
+        name="fld-cert"
+        autoComplete="off"
         data-form-type="other"
         data-lpignore="true"
         aria-autocomplete="list"

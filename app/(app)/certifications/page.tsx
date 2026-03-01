@@ -1222,8 +1222,8 @@ export default function CertificationsPage() {
                 <label className={labelClass}>Organization URL</label>
                 <input
                   type="search"
-                  name="organization-url-field"
-                  autoComplete="chrome-off"
+                  name="fld-org-url"
+                  autoComplete="off"
                   data-form-type="other"
                   data-lpignore="true"
                   value={form.organization_url}

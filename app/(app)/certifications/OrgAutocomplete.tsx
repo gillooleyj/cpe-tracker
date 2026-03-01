@@ -81,8 +81,8 @@ export default function OrgAutocomplete({
         type="search"
         required
         role="combobox"
-        name="organization-name-field"
-        autoComplete="chrome-off"
+        name="fld-org"
+        autoComplete="off"
         data-form-type="other"
         data-lpignore="true"
         aria-autocomplete="list"
