@@ -531,7 +531,10 @@ function CpeActivitiesInner() {
       activityTitle,
       certName: ca.certifications?.name ?? String(ca.certification_id),
     });
-    setSubmitDate(new Date().toISOString().slice(0, 10));
+    const now = new Date();
+    setSubmitDate(
+      `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+    );
     setSubmitNotes("");
     setSubmitError(null);
   }
