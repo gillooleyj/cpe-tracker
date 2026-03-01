@@ -53,7 +53,7 @@ export async function GET(_request: Request) {
     cpe_activities: activities ?? [],
   };
 
-  const filename = `credvault-data-${new Date().toISOString().slice(0, 10)}.json`;
+  const filename = `argus-data-${new Date().toISOString().slice(0, 10)}.json`;
 
   return new NextResponse(JSON.stringify(exportData, null, 2), {
     headers: {

@@ -182,7 +182,7 @@ function MFASetupInner() {
 
   function downloadCodes() {
     const text = [
-      "CredVault — MFA Backup Codes",
+      "Argus — MFA Backup Codes",
       "Keep these codes safe. Each can only be used once.",
       "",
       ...backupCodes,
@@ -191,7 +191,7 @@ function MFASetupInner() {
     ].join("\n");
     const a = document.createElement("a");
     a.href = `data:text/plain;charset=utf-8,${encodeURIComponent(text)}`;
-    a.download = "cpe-tracker-backup-codes.txt";
+    a.download = "argus-backup-codes.txt";
     a.click();
   }
 

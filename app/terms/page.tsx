@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — CredVault",
+  title: "Terms of Service — Argus",
 };
 
 export default function TermsPage() {
@@ -20,14 +20,14 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">1. Acceptance</h2>
           <p>
-            By creating an account or using CredVault, you agree to these Terms of Service. If you do not agree, do not use the service.
+            By creating an account or using Argus, you agree to these Terms of Service. If you do not agree, do not use the service.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">2. Description of Service</h2>
           <p>
-            CredVault is a tool for tracking professional certifications, continuing professional development (CPD) activities, and renewal deadlines. It is provided for personal and professional use.
+            Argus is a tool for tracking professional certifications, continuing professional development (CPD) activities, and renewal deadlines. It is provided for personal and professional use.
           </p>
         </section>
 
@@ -56,7 +56,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">5. Your Data</h2>
           <p>
-            You retain ownership of all data you enter into CredVault. By uploading content, you grant us a limited license to store and display that content solely for the purpose of providing the service to you. We do not claim ownership of your data and will not use it for any other purpose. See our{" "}
+            You retain ownership of all data you enter into Argus. By uploading content, you grant us a limited license to store and display that content solely for the purpose of providing the service to you. We do not claim ownership of your data and will not use it for any other purpose. See our{" "}
             <Link href="/privacy" className="text-blue-700 dark:text-blue-400 hover:underline">
               Privacy Policy
             </Link>{" "}
@@ -67,7 +67,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">6. No Warranty on CPD Compliance</h2>
           <p>
-            CredVault is a tracking tool only. We do not verify, certify, or guarantee that activities logged in the app meet the CPD requirements of any certification body. You are solely responsible for confirming compliance with your certification authority.
+            Argus is a tracking tool only. We do not verify, certify, or guarantee that activities logged in the app meet the CPD requirements of any certification body. You are solely responsible for confirming compliance with your certification authority.
           </p>
         </section>
 
@@ -103,7 +103,7 @@ export default function TermsPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">11. Contact</h2>
           <p>
             Questions about these terms?{" "}
-            <a href="mailto:legal@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
+            <a href="mailto:legal@cooeytools.com" className="text-blue-700 dark:text-blue-400 hover:underline">
               legal@cooeytools.com
             </a>
           </p>

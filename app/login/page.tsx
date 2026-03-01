@@ -37,7 +37,7 @@ function LoginForm() {
           Sign in
         </h1>
         <p className="text-sm text-center text-gray-500 dark:text-gray-400 mb-8">
-          Welcome back to CredVault
+          Welcome back to Argus
         </p>
 
         <form onSubmit={handleLogin} className="space-y-4">

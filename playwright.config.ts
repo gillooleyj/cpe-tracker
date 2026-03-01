@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * E2E configuration for the CredVault auth flow.
+ * E2E configuration for the Argus auth flow.
  *
  * We start a *separate* Next.js dev server on port 3001 (not 3000) so that
  * any existing local dev server is never used — it would have the real Supabase

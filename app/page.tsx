@@ -16,7 +16,7 @@ export default function LandingPage() {
             </span>
           </h1>
           <p className="mt-6 text-lg sm:text-xl text-gray-600 dark:text-gray-400 leading-relaxed">
-            CredVault tracks your certifications and professional licenses,
+            Argus tracks your certifications and professional licenses,
             keeps you on pace with continuing professional development (CPD) requirements, and alerts you before
             anything expires.
           </p>
@@ -41,7 +41,7 @@ export default function LandingPage() {
           <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-2xl">
             <Image
               src="/images/dashboard-preview.png"
-              alt="CredVault dashboard showing certification tracking and CPD progress"
+              alt="Argus dashboard showing certification tracking and CPD progress"
               width={1280}
               height={800}
               className="w-full h-auto object-contain"
@@ -81,7 +81,7 @@ export default function LandingPage() {
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               Add all your certifications and professional licenses in one
-              place. CredVault tracks expiration dates, CPD cycle requirements,
+              place. Argus tracks expiration dates, CPD cycle requirements,
               and renewal deadlines automatically.
             </p>
           </div>
@@ -131,7 +131,7 @@ export default function LandingPage() {
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
               Record training, conferences, courses, and self-study against any
-              certification. CredVault maps your activities to the right
+              certification. Argus maps your activities to the right
               credentials automatically.
             </p>
           </div>

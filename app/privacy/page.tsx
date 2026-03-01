@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — CredVault",
+  title: "Privacy Policy — Argus",
 };
 
 export default function PrivacyPage() {
@@ -20,9 +20,9 @@ export default function PrivacyPage() {
         <section>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">1. Who We Are</h2>
           <p>
-            CredVault ("we," "us," or "our") is a professional certification tracking application.
+            Argus ("we," "us," or "our") is a professional certification tracking application.
             For questions about this policy or to exercise your data rights, contact us at{" "}
-            <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
+            <a href="mailto:privacy@cooeytools.com" className="text-blue-700 dark:text-blue-400 hover:underline">
               privacy@cooeytools.com
             </a>.
           </p>
@@ -94,7 +94,7 @@ export default function PrivacyPage() {
           </ul>
           <p className="mt-3">
             To exercise rights that are not self-service, contact{" "}
-            <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
+            <a href="mailto:privacy@cooeytools.com" className="text-blue-700 dark:text-blue-400 hover:underline">
               privacy@cooeytools.com
             </a>.
           </p>
@@ -118,7 +118,7 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3">10. Contact</h2>
           <p>
             Questions or concerns about this policy?{" "}
-            <a href="mailto:privacy@credvault.app" className="text-blue-700 dark:text-blue-400 hover:underline">
+            <a href="mailto:privacy@cooeytools.com" className="text-blue-700 dark:text-blue-400 hover:underline">
               privacy@cooeytools.com
             </a>
           </p>

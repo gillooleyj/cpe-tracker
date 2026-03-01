@@ -16,7 +16,7 @@ export default function Home() {
         </h1>
 
         <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10 leading-relaxed">
-          CredVault tracks your professional certifications, CPD progress, and renewal deadlines
+          Argus tracks your professional certifications, CPD progress, and renewal deadlines
           across every credential you hold — all in one place.
         </p>
 
@@ -36,7 +36,7 @@ export default function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-gray-950 via-transparent to-transparent z-10 pointer-events-none" style={{height: "100%", top: "60%"}}></div>
           <Image
             src="/images/dashboard-preview.png"
-            alt="CredVault dashboard showing certification tracking"
+            alt="Argus dashboard showing certification tracking"
             width={1200}
             height={750}
             className="w-full"
@@ -106,10 +106,13 @@ export default function Home() {
       <footer className="border-t border-gray-800">
         <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <svg width="20" height="20" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M14 2L4 7V14C4 19.5 8.5 24.7 14 26C19.5 24.7 24 19.5 24 14V7L14 2Z" fill="#1e40af" stroke="#3b82f6" strokeWidth="1.5"/>
-              <path d="M10 14L13 17L18 11" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/argus-logo-icon.svg"
+              alt=""
+              aria-hidden="true"
+              className="h-5 w-auto"
+            />
             <span className="text-sm text-gray-500">
               © 2026 COOEY Tools. All rights reserved.
             </span>

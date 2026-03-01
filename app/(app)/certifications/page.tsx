@@ -40,7 +40,7 @@ const EMPTY_FORM: CertFormFields = {
 
 const CERT_SORT_KEY = "certSortPreference";
 const CERT_FILTER_KEY = "certFilterPreference";
-const RTS_KEY = "cpe-tracker-rts-collapsed";
+const RTS_KEY = "argus-rts-collapsed";
 
 // ── Helper functions ──────────────────────────────────────────────────────────
 
