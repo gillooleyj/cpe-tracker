@@ -967,7 +967,24 @@ function CpeActivitiesInner() {
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       {!loading && activities.length > 0 && (
-        <div className="space-y-2 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          {/* Submission status tabs */}
+          <div className="flex items-center gap-1">
+            {(["all", "submitted", "unsubmitted"] as SubmitFilter[]).map((f) => (
+              <button
+                key={f}
+                onClick={() => setFilterSubmit(f)}
+                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+                  filterSubmit === f
+                    ? "bg-blue-900 dark:bg-blue-700 text-white"
+                    : "border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
+                }`}
+              >
+                {f === "all" ? "All" : f === "submitted" ? "Submitted" : "Not Submitted"}
+              </button>
+            ))}
+          </div>
+
           {/* Cert filter */}
           <div className="flex items-center gap-2">
             <label className="text-sm text-gray-500 dark:text-gray-400 shrink-0">
@@ -993,23 +1010,6 @@ function CpeActivitiesInner() {
                 Clear
               </button>
             )}
-          </div>
-
-          {/* Submission status tabs */}
-          <div className="flex items-center gap-1">
-            {(["all", "submitted", "unsubmitted"] as SubmitFilter[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilterSubmit(f)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                  filterSubmit === f
-                    ? "bg-blue-900 dark:bg-blue-700 text-white"
-                    : "border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"
-                }`}
-              >
-                {f === "all" ? "All" : f === "submitted" ? "Submitted" : "Not Submitted"}
-              </button>
-            ))}
           </div>
         </div>
       )}

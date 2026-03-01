@@ -1072,21 +1072,7 @@ export default function CertificationsPage() {
       </div>
 
       {/* Sort + filter controls */}
-      <div className="space-y-2 mb-4">
-        <div className="flex items-center gap-2">
-          <label htmlFor="cert-sort" className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Sort:</label>
-          <select
-            id="cert-sort"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as SortBy)}
-            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
-          >
-            <option value="urgency">Urgency</option>
-            <option value="expiration">Expiration</option>
-            <option value="name-asc">Name (A–Z)</option>
-            <option value="name-desc">Name (Z–A)</option>
-          </select>
-        </div>
+      <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-1">
           {(["active", "all", "expired"] as FilterBy[]).map((f) => (
             <button
@@ -1101,6 +1087,20 @@ export default function CertificationsPage() {
               {f === "active" ? "Show Active Only" : f === "expired" ? "Show Expired Only" : "Show All"}
             </button>
           ))}
+        </div>
+        <div className="flex items-center gap-2">
+          <label htmlFor="cert-sort" className="text-sm text-gray-500 dark:text-gray-400 shrink-0">Sort:</label>
+          <select
+            id="cert-sort"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortBy)}
+            className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-900"
+          >
+            <option value="urgency">Urgency</option>
+            <option value="expiration">Expiration</option>
+            <option value="name-asc">Name (A–Z)</option>
+            <option value="name-desc">Name (Z–A)</option>
+          </select>
         </div>
       </div>
 
