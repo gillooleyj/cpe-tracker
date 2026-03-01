@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, KeyboardEvent } from "react";
+import { useEffect, useRef, useState, KeyboardEvent, ClipboardEvent } from "react";
 import { ORGANIZATIONS } from "@/constants/certifications";
 import type { OrgInfo } from "@/constants/certifications";
 
@@ -26,7 +26,6 @@ export default function OrgAutocomplete({
   const [suggestions, setSuggestions] = useState<OrgInfo[]>([]);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
-  const [readOnly, setReadOnly] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -45,7 +44,6 @@ export default function OrgAutocomplete({
   }, []);
 
   function handleFocus() {
-    setReadOnly(false);
     setOpen(true);
     setSuggestions(searchOrgs(value));
   }
@@ -56,10 +54,13 @@ export default function OrgAutocomplete({
     setActiveIndex(-1);
   }
 
+  // The input is permanently readOnly so Safari never triggers contact autofill.
+  // Key events still fire on readOnly inputs — we intercept them and manually
+  // update the value via onChange instead of letting the browser do it.
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (!suggestions.length) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
+      if (!open) { setOpen(true); setSuggestions(searchOrgs(value)); }
       setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -70,7 +71,21 @@ export default function OrgAutocomplete({
     } else if (e.key === "Escape") {
       setOpen(false);
       setActiveIndex(-1);
+    } else if (e.key === "Backspace") {
+      e.preventDefault();
+      onChange(value.slice(0, -1));
+    } else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      onChange(value + e.key);
+      if (!open) setOpen(true);
     }
+  }
+
+  function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
+    e.preventDefault();
+    const text = e.clipboardData.getData("text/plain");
+    onChange(text);
+    if (!open) setOpen(true);
   }
 
   const showDropdown = open && suggestions.length > 0;
@@ -78,22 +93,17 @@ export default function OrgAutocomplete({
   return (
     <div ref={containerRef} className="relative">
       <input
-        type="search"
-        required
+        type="text"
+        readOnly
         role="combobox"
-        name="fld-org"
-        autoComplete="off"
-        data-form-type="other"
-        data-lpignore="true"
         aria-autocomplete="list"
         aria-expanded={showDropdown}
-        readOnly={readOnly}
         onFocus={handleFocus}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        value={value}
         placeholder="e.g. ISC2 or type your own"
-        className={`w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent [&::-webkit-search-cancel-button]:hidden ${
+        className={`w-full px-3 py-2 border rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:border-transparent ${
           hasError
             ? "border-red-400 dark:border-red-500 focus:ring-red-400 dark:focus:ring-red-500"
             : "border-gray-300 dark:border-gray-600 focus:ring-blue-900 dark:focus:ring-blue-500"

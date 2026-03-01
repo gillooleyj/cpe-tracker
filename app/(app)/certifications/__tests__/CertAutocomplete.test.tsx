@@ -126,13 +126,13 @@ describe("CertAutocomplete", () => {
   });
 
   describe("focus behavior", () => {
-    it("sets readOnly to false on focus", async () => {
+    it("stays readOnly on focus (Safari autofill prevention)", async () => {
       renderComponent({});
       const input = screen.getByRole("combobox") as HTMLInputElement;
       await act(async () => {
         fireEvent.focus(input);
       });
-      expect(input.readOnly).toBe(false);
+      expect(input.readOnly).toBe(true);
     });
 
     it("opens dropdown on focus", async () => {
@@ -363,7 +363,7 @@ describe("CertAutocomplete", () => {
   });
 
   describe("value change", () => {
-    it("calls onChange when input value changes", async () => {
+    it("calls onChange when a character key is pressed", async () => {
       const onChange = vi.fn();
       render(
         <CertAutocomplete value="" onChange={onChange} onSelect={vi.fn()} />
@@ -373,9 +373,9 @@ describe("CertAutocomplete", () => {
         fireEvent.focus(input);
       });
       await act(async () => {
-        fireEvent.change(input, { target: { value: "CIS" } });
+        fireEvent.keyDown(input, { key: "C" });
       });
-      expect(onChange).toHaveBeenCalledWith("CIS");
+      expect(onChange).toHaveBeenCalledWith("C");
     });
   });
 
