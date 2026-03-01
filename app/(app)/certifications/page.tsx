@@ -12,8 +12,9 @@ import {
 } from "@/lib/certValidation";
 import { useAuth } from "../../AuthProvider";
 import CertAutocomplete from "./CertAutocomplete";
+import OrgAutocomplete from "./OrgAutocomplete";
 import DateInput from "./DateInput";
-import { ORGANIZATIONS, getOrgInfo } from "@/constants/certifications";
+import { getOrgInfo } from "@/constants/certifications";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type SortBy = "urgency" | "expiration" | "name-asc" | "name-desc";
@@ -1166,37 +1167,6 @@ export default function CertificationsPage() {
             className="space-y-4"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Organization */}
-              <div>
-                <label className={labelClass}>
-                  Organization <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.organization}
-                  onChange={(e) => {
-                    const org = e.target.value;
-                    const info = getOrgInfo(org);
-                    setForm((f) => ({
-                      ...f,
-                      organization: org,
-                      organization_url: info?.url ?? "",
-                      name: "",
-                      cpe_required: "",
-                      cpe_cycle_length: info ? String(info.cycleMonths) : "",
-                      annual_minimum_cpe: "",
-                    }));
-                  }}
-                  aria-invalid={!!fieldErrors.organization}
-                  className={inputCls("organization")}
-                >
-                  <option value="">Select an organization…</option>
-                  {ORGANIZATIONS.map((o) => (
-                    <option key={o.name} value={o.name}>{o.name}</option>
-                  ))}
-                </select>
-                <FieldError name="organization" />
-              </div>
-
               {/* Certification name */}
               <div>
                 <label className={labelClass}>
@@ -1221,6 +1191,30 @@ export default function CertificationsPage() {
                   }
                 />
                 <FieldError name="name" />
+              </div>
+
+              {/* Organization */}
+              <div>
+                <label className={labelClass}>
+                  Organization <span className="text-red-500">*</span>
+                </label>
+                <OrgAutocomplete
+                  value={form.organization}
+                  hasError={!!fieldErrors.organization}
+                  onChange={(v) => setForm((f) => ({ ...f, organization: v }))}
+                  onSelect={(info) =>
+                    setForm((f) => ({
+                      ...f,
+                      organization: info.name,
+                      organization_url: info.url,
+                      name: "",
+                      cpe_required: "",
+                      cpe_cycle_length: String(info.cycleMonths),
+                      annual_minimum_cpe: "",
+                    }))
+                  }
+                />
+                <FieldError name="organization" />
               </div>
 
               {/* Organization URL */}
