@@ -967,7 +967,7 @@ function CpeActivitiesInner() {
 
       {/* ── Filter bar ──────────────────────────────────────────────────────── */}
       {!loading && activities.length > 0 && (
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
           {/* Submission status tabs */}
           <div className="flex items-center gap-1 shrink-0">
             {(["all", "submitted", "unsubmitted"] as SubmitFilter[]).map((f) => (

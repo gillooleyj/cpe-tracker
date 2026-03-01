@@ -1073,7 +1073,7 @@ export default function CertificationsPage() {
       </div>
 
       {/* Sort + filter controls */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <div className="flex items-center gap-1 shrink-0">
           {(["active", "all", "expired"] as FilterBy[]).map((f) => (
             <button
